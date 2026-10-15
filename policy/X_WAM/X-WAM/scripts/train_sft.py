@@ -30,6 +30,8 @@ def main():
     config = OmegaConf.merge(model_config, config_override)
 
     data_config = OmegaConf.load(f"configs/data/{config.dataset}.yaml")
+    if config.get("robot_statistics"):
+        data_config.statistics = OmegaConf.load(config.robot_statistics)
     config["dataset"] = data_config
 
     pprint(OmegaConf.to_container(config))
@@ -122,7 +124,16 @@ def main():
         ckpt = torch.load(
             os.path.join(config.pretrained_checkpoint, "checkpoint/mp_rank_00_model_states.pt"), map_location="cpu"
         )
-        model.load_state_dict(ckpt["module"])
+        state = ckpt["module"]
+        if config.get("adapt_robot_heads", False):
+            current = model.state_dict()
+            mismatched = [k for k in state if k in current and state[k].shape != current[k].shape]
+            if any(not any(name in k for name in ("action_encoder", "action_decoder", "proprio_encoder", "proprio_decoder")) for k in mismatched):
+                raise ValueError(f"Unexpected pretrained shape mismatch: {mismatched}")
+            state = {k: v for k, v in state.items() if k not in mismatched}
+            model.load_state_dict(state, strict=False)
+        else:
+            model.load_state_dict(state)
 
     devices = torch.cuda.device_count()
     world_size = int(os.environ.get("WORLD_SIZE", devices))

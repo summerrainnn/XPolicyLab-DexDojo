@@ -70,3 +70,11 @@ my_config = TrainConfig(
     fsdp_devices=8,
     wandb_enabled=False,
 )
+
+# Matching Marvin checkpoint/config; the ARX configuration remains separate.
+import dataclasses
+marvin_config = dataclasses.replace(
+    my_config, name="pi05sf_marvin",
+    model=dataclasses.replace(my_config.model, action_dim=54),
+    data=dataclasses.replace(my_config.data, assets=AssetsConfig(asset_id="marvin_wuji")),
+)

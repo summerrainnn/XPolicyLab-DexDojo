@@ -3,6 +3,7 @@ Normalization utilities for Mem_0 arms (first 14 dims).
 Gripper dims are assumed normalized externally to [0, 1].
 """
 
+import builtins
 import json
 import os
 from typing import Dict
@@ -97,7 +98,7 @@ def normalize_arms(
     if quantile and q01 is not None and q99 is not None:
         q01_arr = np.asarray(q01, dtype=np.float32)
         q99_arr = np.asarray(q99, dtype=np.float32)
-        dims = min(out.shape[-1], q01_arr.shape[-1], q99_arr.shape[-1])
+        dims = builtins.min(out.shape[-1], q01_arr.shape[-1], q99_arr.shape[-1])
         q_range = q99_arr[:dims] - q01_arr[:dims]
         mask = np.where (q_range > 1e-8, 1.0, 0.0)
         q_range = np.where(q_range > 1e-8, q_range, 1.0)
@@ -142,7 +143,7 @@ def denormalize_arms(
     if quantile and q01 is not None and q99 is not None:
         q01_arr = np.asarray(q01, dtype=np.float32)
         q99_arr = np.asarray(q99, dtype=np.float32)
-        dims = min(out.shape[-1], q01_arr.shape[-1], q99_arr.shape[-1])
+        dims = builtins.min(out.shape[-1], q01_arr.shape[-1], q99_arr.shape[-1])
         q_range = q99_arr[:dims] - q01_arr[:dims]
         q_range = np.where(q_range > 1e-8, q_range, 1.0)
         out[..., :dims] = 0.5 * (out[..., :dims] + 1.0) * q_range + q01_arr[:dims]

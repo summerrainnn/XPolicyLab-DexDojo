@@ -203,6 +203,11 @@ class RoboChallengeDataset(torch.utils.data.Dataset):
         return [float(value)]
 
     def _build_state_row(self, raw_state: Dict[str, Any]) -> List[float]:
+        if self.state_encoding == "joint_absolute":
+            from XPolicyLab.utils.robot_layout import MARVIN
+            state = MARVIN.validate(raw_state["joint_state"])
+            action = MARVIN.validate(raw_state["joint_action"])
+            return state.tolist() + action.tolist() + [raw_state["timestamp"]]
         if self.state_encoding == "dual_arm_ee":
             return (
                 raw_state["left_ee_positions"]
@@ -295,6 +300,9 @@ class RoboChallengeDataset(torch.utils.data.Dataset):
     def _encode_state(
         self, episode_idx: int, frame_idx: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+        if self.state_encoding == "joint_absolute":
+            state = self._get_state_row(episode_idx, frame_idx)[:54]
+            return torch.tensor(state, dtype=torch.float32)[None], torch.ones((1, 54), dtype=torch.bool)
         state_idx = max(0, frame_idx - 1)
         row = self._get_state_row(episode_idx, state_idx)
         if self.state_encoding == "dual_arm_ee":
@@ -335,6 +343,14 @@ class RoboChallengeDataset(torch.utils.data.Dataset):
     def _encode_actions(
         self, episode_idx: int, frame_idx: int
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        if self.state_encoding == "joint_absolute":
+            ep_len = self._get_ep_length(episode_idx)
+            rows = [self._get_state_row(episode_idx, min(frame_idx + i, ep_len - 1))[54:108]
+                    for i in range(self.action_horizon)]
+            valid = np.arange(self.action_horizon) < min(self.chunk_size, ep_len - frame_idx)
+            return (torch.tensor(np.asarray(rows), dtype=torch.float32),
+                    torch.tensor(np.broadcast_to(valid[:, None], (self.action_horizon, 54)).copy()),
+                    torch.tensor(~valid))
         ref_idx = max(0, frame_idx - 1)
         ep_len = self._get_ep_length(episode_idx)
 

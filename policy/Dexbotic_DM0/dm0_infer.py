@@ -29,6 +29,10 @@ class DM0Infer:
     def __init__(self, model_path: str, *, norm_stats_path: Optional[str] = None):
         self.config = DM0InferenceConfig()
         self.config.model_name_or_path = model_path
+        with open(os.path.join(model_path, "config.json")) as fp:
+            self.config.action_dim = int(json.load(fp).get("action_dim", 32))
+        if self.config.action_dim == 66:
+            self.config.non_delta_mask = list(range(7, 27)) + list(range(40, 60))
         if norm_stats_path is not None:
             self.config.norm_stats = self.config.read_normalization_stats(norm_stats_path)
         self.config._initialize_inference()

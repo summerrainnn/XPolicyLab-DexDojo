@@ -10,7 +10,9 @@ policy_gpu_id=$7
 policy_conda_env=$8
 policy_server_port=$9
 policy_server_host=${10:-"localhost"}
-config_name=${11:-robotwin30_train}
+default_config=robotwin30_train
+[[ "${env_cfg_type}" == "marvin_wuji" ]] && default_config=marvin_train
+config_name=${11:-${default_config}}
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 XPL_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"

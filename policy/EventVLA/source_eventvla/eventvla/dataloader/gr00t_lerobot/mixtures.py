@@ -18,3 +18,7 @@ DATASET_NAMED_MIXTURES: Dict[str, List[Tuple[str, float, str]]] = {
         ("RoboDojo_lerobot_v21_video", 1.0, "robotwin_mem"),
     ],
 }
+
+import os
+if os.environ.get("EVENTVLA_MARVIN_DATASET"):
+    DATASET_NAMED_MIXTURES["marvin_wuji"] = [(os.environ["EVENTVLA_MARVIN_DATASET"], 1.0, "marvin_wuji")]

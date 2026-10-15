@@ -22,6 +22,7 @@ model_path="${XVLA_MODEL_PATH:?set XVLA_MODEL_PATH to your X-VLA-Pt pretrained w
 
 mkdir -p "${ckpt_dir}"
 export CUDA_VISIBLE_DEVICES="${gpu_id}"
+export XVLA_ROBOT="${env_cfg_type}"
 
 echo "[X_VLA] meta_path=${meta_path}"
 echo "[X_VLA] checkpoint_dir=${ckpt_dir}"

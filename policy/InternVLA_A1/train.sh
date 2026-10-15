@@ -30,6 +30,11 @@ export QWEN3_2B_PATH="${QWEN3_2B_PATH:-${POLICY_DIR}/checkpoints/shared/Qwen3-VL
 # Base InternVLA-A1-3B weights the finetune launches from; offline mode is forced
 # in the launch script, so this must point at a local checkpoint.
 export PRETRAINED_PATH="${PRETRAINED_PATH:-${POLICY_DIR}/checkpoints/shared/InternVLA-A1-3B}"
+if [[ "${env_cfg_type}" == "marvin_wuji" ]]; then
+  init_path="${POLICY_DIR}/checkpoints/${ckpt_setting}-initialization"
+  python "${POLICY_DIR}/../SmolVLA/prepare_marvin_checkpoint.py" "${PRETRAINED_PATH}" "${init_path}"
+  export PRETRAINED_PATH="${init_path}" INTERNVLA_ROBOT_DIM=54
+fi
 export PROC_PER_NODE="${PROC_PER_NODE:-$(tr ',' '\n' <<< "${gpu_id}" | sed '/^$/d' | wc -l | xargs)}"
 export JOB_NAME="${ckpt_setting}"
 export OUTPUT_DIR="${ckpt_dir}"

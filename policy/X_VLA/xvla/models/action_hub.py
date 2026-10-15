@@ -273,3 +273,12 @@ __all__ = [
     "AGIBOTEE6DActionSpace",
     "ACTION_REGISTRY",
 ]
+
+
+@register_action("ee6d_marvin")
+class MarvinEEActionSpace(BaseActionSpace):
+    """Two xyz/rotation6D/20-joint hands; no binary gripper channels."""
+    dim_action = 58
+
+    def compute_loss(self, pred, target):
+        return {"action_loss": torch.nn.functional.mse_loss(pred, target)}

@@ -14,14 +14,7 @@ from typing import Any
 
 from PIL import Image
 
-from .openvla_oft.prismatic.vla.constants import NUM_ACTIONS_CHUNK, PROPRIO_DIM
-from .openvla_oft.experiments.robot.openvla_utils import (
-    get_vla,
-    get_processor,
-    get_action_head,
-    get_proprio_projector,
-    get_vla_action,
-)
+NUM_ACTIONS_CHUNK = 25
 
 from XPolicyLab.model_template import ModelTemplate
 from XPolicyLab.utils.checkpoint_resolver import build_run_dir_name, candidate_checkpoint_roots
@@ -383,6 +376,20 @@ def encode_obs(observation, action_type, robot_action_dim_info, default_prompt):
 
 class Model(ModelTemplate):
     def __init__(self, model_cfg):
+        global PROPRIO_DIM, get_vla, get_processor, get_action_head, get_proprio_projector, get_vla_action
+        dims = get_robot_action_dim_info(model_cfg["env_cfg_type"])
+        width = sum(dims["arm_dim"]) + sum(dims["ee_dim"])
+        os.environ["OPENVLA_ACTION_DIM"] = str(width)
+        os.environ["OPENVLA_PROPRIO_DIM"] = str(width)
+        from .openvla_oft.prismatic.vla.constants import NUM_ACTIONS_CHUNK, PROPRIO_DIM
+        from .openvla_oft.experiments.robot.openvla_utils import (
+            get_vla,
+            get_processor,
+            get_action_head,
+            get_proprio_projector,
+            get_vla_action,
+        )
+
         self._finetune_dir = _resolve_finetune_dir(model_cfg)
         self._dataset_stats_path = _resolve_dataset_stats_path(self._finetune_dir)
         self._dataset_stats: dict | None = None

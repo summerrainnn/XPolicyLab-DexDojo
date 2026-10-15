@@ -9,7 +9,7 @@ task_name: null
 ckpt_name: null
 env_cfg_type: marvin_wuji
 action_type: ee
-action_dim: 54
+action_dim: 52
 seed: 42
 exp_path: null
 checkpoint_path: null

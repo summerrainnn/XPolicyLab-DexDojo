@@ -48,6 +48,9 @@ if [[ ! -f "${POLICY_DIR}/lingbot_vla/${config_path}" && ! -f "${config_path}" ]
 fi
 
 extra_train_args=()
+if [[ "${env_cfg_type}" == "marvin_wuji" ]]; then
+  extra_train_args+=(--train.action_dim 54)
+fi
 if [[ -n "${LINGBOT_VLA_MODEL_PATH:-}" ]]; then
   extra_train_args+=(--model.model_path "${LINGBOT_VLA_MODEL_PATH}")
 fi

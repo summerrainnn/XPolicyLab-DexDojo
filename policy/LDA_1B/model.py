@@ -465,7 +465,7 @@ class Model(ModelTemplate):
         layout = []
         for key in action_keys:
             raw = raw_width_for(key)
-            padded = int(pad_action_state_with_key(np.zeros((1, 1)), key)[0].shape[1])
+            padded = raw if self.env_cfg_type == "marvin_wuji" else int(pad_action_state_with_key(np.zeros((1, 1)), key)[0].shape[1])
             if raw > padded:
                 raise ValueError(
                     f"action_key '{key}' raw_width={raw} > padded_width={padded}."

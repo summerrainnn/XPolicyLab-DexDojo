@@ -97,6 +97,7 @@ class AlohaOutputs(transforms.DataTransformFn):
     # If true, this will convert the joint and gripper values from the standard Aloha space to
     # the space used by the pi internal runtime which was used to train the base model.
     adapt_to_pi: bool = True
+    action_dim: int = 14
 
     def __call__(self, data: dict) -> dict:
         # Only return the first 14 dims.

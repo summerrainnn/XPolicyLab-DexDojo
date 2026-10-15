@@ -24,6 +24,25 @@ ACTION_PARTS = (
 )
 
 
+def action_parts(width):
+    if width == 32:
+        return ACTION_PARTS
+    if width != 66:
+        raise ValueError(f"XR0 unsupported action width {width}")
+    return tuple((f"{side}_{name}", slice(base+start, base+end))
+                 for side, base in (("left", 0), ("right", 33))
+                 for name, start, end in (("ee_pos",0,3),("ee_aa",3,6),("gripper",6,26),("joint",26,33)))
+
+
+def width_from_hands(left, right):
+    widths = (np.asarray(left).shape[-1], np.asarray(right).shape[-1])
+    if widths == (20, 20):
+        return 66
+    if widths == (1, 1):
+        return 32
+    raise ValueError(f"XR0 unsupported hand widths {widths}")
+
+
 def get_value(data, path):
     for key in path.split("."):
         if not isinstance(data, Mapping):
@@ -121,17 +140,17 @@ def aa2rotm(axis_angle) -> np.ndarray:
 def validate_stats(mean: Sequence[Sequence[float]], std: Sequence[Sequence[float]], action_length: int):
     mean = np.asarray(mean, dtype=np.float32)
     std = np.asarray(std, dtype=np.float32)
-    if mean.shape != (action_length, ACTION_DIM):
+    if mean.ndim != 2 or mean.shape[0] != action_length or mean.shape[1] not in (32, 66):
         raise ValueError(f"mean expected shape {(action_length, ACTION_DIM)}, got {mean.shape}")
-    if std.shape != (action_length, ACTION_DIM):
+    if std.shape != mean.shape:
         raise ValueError(f"std expected shape {(action_length, ACTION_DIM)}, got {std.shape}")
     return mean, std
 
 
-def build_action_mask(action_length: int, temporal_mask=None) -> np.ndarray:
+def build_action_mask(action_length: int, temporal_mask=None, width=32) -> np.ndarray:
     temporal = np.ones(action_length, dtype=np.int32) if temporal_mask is None else np.asarray(temporal_mask, dtype=np.int32)
-    mask = np.zeros((action_length, ACTION_DIM), dtype=np.int32)
-    for _, slc in ACTION_PARTS:
+    mask = np.zeros((action_length, width), dtype=np.int32)
+    for _, slc in action_parts(width):
         mask[:, slc] = temporal[:, None]
     return mask
 
@@ -148,21 +167,20 @@ def compose_action(
     action_length: int,
 ) -> np.ndarray:
     values = (left_ee_pos, left_ee_aa, left_gripper, left_joint, right_ee_pos, right_ee_aa, right_gripper, right_joint)
-    action = np.zeros((action_length, ACTION_DIM), dtype=np.float32)
-    for (_, slc), value in zip(ACTION_PARTS, values):
+    width = width_from_hands(left_gripper, right_gripper)
+    action = np.zeros((action_length, width), dtype=np.float32)
+    for (_, slc), value in zip(action_parts(width), values):
         action[:, slc] = np.asarray(value, dtype=np.float32)
     return action
 
 
 def compose_state(left_gripper, left_joint, right_gripper, right_joint) -> np.ndarray:
-    state = np.zeros((1, STATE_DIM), dtype=np.float32)
-    for slc, value in (
-        (slice(6, 7), left_gripper),
-        (slice(7, 13), left_joint),
-        (slice(20, 21), right_gripper),
-        (slice(21, 27), right_joint),
-    ):
-        state[:, slc] = np.asarray(value, dtype=np.float32).reshape(1, slc.stop - slc.start)
+    width = width_from_hands(np.asarray(left_gripper).reshape(1,-1), np.asarray(right_gripper).reshape(1,-1))
+    state = np.zeros((1, width), dtype=np.float32)
+    fields = dict(left_gripper=left_gripper, left_joint=left_joint, right_gripper=right_gripper, right_joint=right_joint)
+    for name, slc in action_parts(width):
+        if name in fields:
+            state[:, slc] = np.asarray(fields[name], dtype=np.float32).reshape(1, slc.stop-slc.start)
     return state
 
 
@@ -176,7 +194,7 @@ def denormalize_action(action, mean, std):
 
 def split_action(action) -> dict[str, np.ndarray]:
     action = np.asarray(action, dtype=np.float32)
-    return {name: action[..., slc] for name, slc in ACTION_PARTS}
+    return {name: action[..., slc] for name, slc in action_parts(action.shape[-1])}
 
 
 def recover_action(action, robot_state: Mapping[str, np.ndarray]) -> dict[str, np.ndarray]:
@@ -186,8 +204,8 @@ def recover_action(action, robot_state: Mapping[str, np.ndarray]) -> dict[str, n
     for side in ("left", "right"):
         rotm = np.asarray(robot_state[f"{side}_ee_rotm"], dtype=np.float32).reshape(3, 3)
         pos = np.asarray(robot_state[f"{side}_ee_pos"], dtype=np.float32).reshape(3)
-        gripper = np.asarray(robot_state[f"{side}_gripper_pos"], dtype=np.float32).reshape(1)
-        joint = np.asarray(robot_state[f"{side}_arm_joint"], dtype=np.float32).reshape(6)
+        gripper = np.asarray(robot_state[f"{side}_gripper_pos"], dtype=np.float32).reshape(-1)
+        joint = np.asarray(robot_state[f"{side}_arm_joint"], dtype=np.float32).reshape(-1)
 
         targets[f"{side}_ee_pos"] = (pos[None] + parts[f"{side}_ee_pos"] @ rotm.T).astype(np.float32)
         targets[f"{side}_ee_rotm"] = np.stack([rotm @ aa2rotm(delta) for delta in parts[f"{side}_ee_aa"]], axis=0).astype(np.float32)

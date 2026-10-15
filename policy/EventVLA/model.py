@@ -141,8 +141,8 @@ class Model(ModelTemplate):
         self.action_dim = sum(self.robot_action_dim_info["arm_dim"]) + sum(
             self.robot_action_dim_info["ee_dim"]
         )
-        if self.action_dim != 14:
-            raise NotImplementedError("EventVLA adapter currently expects arx_x5 joint action_dim=14.")
+        if self.action_dim not in (14, 54):
+            raise NotImplementedError("EventVLA supports ARX5 14D and Marvin 54D joint layouts.")
 
         eventvla_root = _optional_path(
             self.model_cfg.get("eventvla_root"),
@@ -902,13 +902,11 @@ class Model(ModelTemplate):
     @staticmethod
     def _eventvla_raw_to_xpolicy(action: np.ndarray) -> np.ndarray:
         action = np.asarray(action, dtype=np.float32)
-        if action.shape[-1] != len(_EVENTVLA_RAW_TO_XPOLICY):
-            raise ValueError(f"Expected EventVLA raw action dim 14, got {action.shape[-1]}.")
-        return action[..., _EVENTVLA_RAW_TO_XPOLICY]
+        from XPolicyLab.utils.robot_layout import joint_layout_for_width
+        return joint_layout_for_width(action.shape[-1]).interleaved(action)
 
     @staticmethod
     def _xpolicy_to_eventvla_raw(state: np.ndarray) -> np.ndarray:
         state = np.asarray(state, dtype=np.float32)
-        if state.shape[-1] != len(_XPOLICY_TO_EVENTVLA_RAW):
-            raise ValueError(f"Expected XPolicy state dim 14, got {state.shape[-1]}.")
-        return state[..., _XPOLICY_TO_EVENTVLA_RAW]
+        from XPolicyLab.utils.robot_layout import joint_layout_for_width
+        return joint_layout_for_width(state.shape[-1]).grouped(state)

@@ -5,6 +5,7 @@ Attempts to automatically identify the correct constants to set based on the Pyt
 training or evaluation. If it is unclear, defaults to using the LIBERO simulation benchmark constants.
 """
 import sys
+import os
 from enum import Enum
 
 # Llama 2 token constants
@@ -73,8 +74,8 @@ elif ROBOT_PLATFORM == "BRIDGE":
 
 # Assign constants to global variables
 NUM_ACTIONS_CHUNK = constants["NUM_ACTIONS_CHUNK"]
-ACTION_DIM = constants["ACTION_DIM"]
-PROPRIO_DIM = constants["PROPRIO_DIM"]
+ACTION_DIM = int(os.environ.get("OPENVLA_ACTION_DIM", constants["ACTION_DIM"]))
+PROPRIO_DIM = int(os.environ.get("OPENVLA_PROPRIO_DIM", constants["PROPRIO_DIM"]))
 ACTION_PROPRIO_NORMALIZATION_TYPE = constants["ACTION_PROPRIO_NORMALIZATION_TYPE"]
 
 # Print which robot platform constants are being used (for debugging)

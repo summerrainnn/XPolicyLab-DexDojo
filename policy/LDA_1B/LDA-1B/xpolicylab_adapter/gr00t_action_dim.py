@@ -23,6 +23,9 @@ def main() -> None:
     if len(sys.argv) != 2:
         sys.exit("usage: python gr00t_action_dim.py <env_cfg_type>")
     env_cfg_type = sys.argv[1]
+    if env_cfg_type == "marvin_wuji":
+        print(54)
+        return
     cfg = ROBOT_TYPE_CONFIG_MAP[env_cfg_type]
     pad_arm_to_7 = env_cfg_type != "arx_x5"
     # Width each action key is padded to, summed over the embodiment's action_keys.

@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 
 from XPolicyLab.model_template import ModelTemplate
+from XPolicyLab.utils.robot_layout import RobotLayout, LEGACY_DUAL
 from XPolicyLab.utils.checkpoint_resolver import candidate_checkpoint_roots
 from XPolicyLab.utils.process_data import get_robot_action_dim_info, pack_robot_state, unpack_robot_state
 
@@ -178,7 +179,7 @@ def encode_obs(observation, action_type, robot_action_dim_info, default_prompt):
         head = ensure_hwc_uint8(observation["images"]["cam_high"])
         left = ensure_hwc_uint8(observation["images"]["cam_left_wrist"])
         right = ensure_hwc_uint8(observation["images"]["cam_right_wrist"])
-        return build_beingh_obs(head, left, right, packed_state, prompt)
+        return build_beingh_obs(head, left, right, packed_state, prompt, robot_action_dim_info)
 
     if robot_action_dim_info is None:
         raise ValueError("env_cfg_type is required when encoding raw environment observations.")
@@ -191,23 +192,26 @@ def encode_obs(observation, action_type, robot_action_dim_info, default_prompt):
         extract_image(observation, ["cam_right_wrist", "right_camera", "right_wrist", "wrist_right"])
     )
     packed_state = pack_robot_state(observation, action_type, robot_action_dim_info, source_type="obs").astype(np.float32)
-    return build_beingh_obs(head, left, right, packed_state, prompt)
+    return build_beingh_obs(head, left, right, packed_state, prompt, robot_action_dim_info)
 
 
-def build_beingh_obs(head, left, right, packed_state, prompt):
+def build_beingh_obs(head, left, right, packed_state, prompt, robot_action_dim_info=None):
     qpos = np.asarray(packed_state, dtype=np.float32)
-    if qpos.shape[-1] != 14:
-        raise ValueError(f"Being_H05 expects 14-dim packed joint state, got shape {qpos.shape}.")
+    layout = RobotLayout.from_info(robot_action_dim_info) if robot_action_dim_info else LEGACY_DUAL
+    layout.validate(qpos)
+    if len(layout.arm_dims) != 2:
+        raise ValueError("Being_H05 requires two arms")
+    (la, lh), (ra, rh) = layout.slices
 
     return {
         "language.instruction": prompt,
         "video.head_view": head,
         "video.right_wrist_view": right,
         "video.left_wrist_view": left,
-        "state.left_arm_joint_position": qpos[0:6],
-        "state.left_gripper_position": qpos[6:7],
-        "state.right_arm_joint_position": qpos[7:13],
-        "state.right_gripper_position": qpos[13:14],
+        "state.left_arm_joint_position": qpos[..., la],
+        "state.left_gripper_position": qpos[..., lh],
+        "state.right_arm_joint_position": qpos[..., ra],
+        "state.right_gripper_position": qpos[..., rh],
     }
 
 

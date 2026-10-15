@@ -38,7 +38,15 @@ class BaseRunner(LightningModule):
 
         if self._pretrained:
             ckpt = torch.load(self._pretrained, map_location="cpu")
-            info = self.load_state_dict(ckpt["module"], strict=False)
+            weights = ckpt["module"]
+            own = self.state_dict()
+            for key in list(weights):
+                if key in own and weights[key].shape != own[key].shape:
+                    if not key.startswith(("model.state_projector.", "model.action_projector.", "model.action_output_layer.")):
+                        raise ValueError(f"Unexpected pretrained shape mismatch: {key}")
+                    logger.info(f"Reinitializing robot projection: {key}")
+                    del weights[key]
+            info = self.load_state_dict(weights, strict=False)
             logger.info(f"Loaded pretrained model from {self._pretrained}: {info}")
 
     def configure_optimizers(self) -> Dict[str, Any]:

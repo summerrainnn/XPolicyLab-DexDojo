@@ -204,7 +204,7 @@ def process_episode(
 
         raw_g = proprios.get(f"{arm}_gripper_pos")
         if raw_g is not None:
-            g = np.asarray(raw_g, dtype=np.float64).reshape(-1, 1)
+            g = np.asarray(raw_g, dtype=np.float64).reshape(len(raw_g), -1)
             buffers["gripper_pos"].append(g)
 
     # --- Action deltas ---
@@ -253,18 +253,18 @@ def process_episode(
 
     # --- Gripper action (proprio delta with static filtering) ---
     if gripper_pos_q01 is not None and gripper_pos_q99 is not None:
-        denom = max(gripper_pos_q99 - gripper_pos_q01, 1e-6)
+        denom = np.maximum(np.asarray(gripper_pos_q99) - gripper_pos_q01, 1e-6)
         for arm in ARMS:
             raw_grip = proprios.get(f"{arm}_gripper_pos")
             if raw_grip is None:
                 continue
-            grip = np.asarray(raw_grip, dtype=np.float64).reshape(-1, 1)
+            grip = np.asarray(raw_grip, dtype=np.float64).reshape(len(raw_grip), -1)
             n = grip.shape[0] - action_skip
             if n <= 0:
                 continue
             raw_delta = grip[action_skip : action_skip + n] - grip[:n]
             norm_delta = 2.0 * raw_delta / denom
-            keep_mask = np.abs(norm_delta[:, 0]) >= static_threshold
+            keep_mask = np.any(np.abs(norm_delta) >= static_threshold, axis=-1)
             if keep_mask.any():
                 buffers["gripper_action"].append(raw_delta[keep_mask])
 
@@ -394,9 +394,9 @@ def main() -> None:
     if "gripper_pos" not in q01_all:
         print("\nWARNING: no gripper_pos data found, skipping gripper_action computation.")
     else:
-        gp_q01 = q01_all["gripper_pos"][0]
-        gp_q99 = q99_all["gripper_pos"][0]
-        print(f"\n--- Pass 2: gripper_action (gripper_pos q01={gp_q01:.6g}, q99={gp_q99:.6g}) ---")
+        gp_q01 = np.asarray(q01_all["gripper_pos"])
+        gp_q99 = np.asarray(q99_all["gripper_pos"])
+        print(f"\n--- Pass 2: gripper_action (gripper_pos q01={gp_q01}, q99={gp_q99}) ---")
 
         gripper_buffers: list[np.ndarray] = []
 
@@ -424,7 +424,9 @@ def main() -> None:
             print(f"  gripper_action: q01={q01_all['gripper_action']}, q99={q99_all['gripper_action']}")
             print(f"  ({combined.shape[0]} non-static samples)")
         else:
-            print("  WARNING: no non-static gripper samples found, skipping gripper_action.")
+            q01_all["gripper_action"] = np.full_like(np.asarray(gp_q01), -1e-6).reshape(-1).tolist()
+            q99_all["gripper_action"] = np.full_like(np.asarray(gp_q99), 1e-6).reshape(-1).tolist()
+            print("  Static hands: using epsilon bounds for zero deltas.")
 
     # === Write output ===
     payload = {"q01": q01_all, "q99": q99_all}

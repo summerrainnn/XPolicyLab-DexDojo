@@ -369,8 +369,13 @@ def write_runtime_configs(a1_dir, dataset_path):
         ),
         encoding="utf-8",
     )
+    import json, yaml
+    width = json.loads((Path(dataset_path) / "meta/info.json").read_text())["features"]["action"]["shape"][0]
+    model_cfg = yaml.safe_load((a1_dir / "configs/models/pretrain.yaml").read_text())
+    model_cfg["action_head"]["fixed_action_dim"] = max(32, width)
+    (a1_dir / "configs/models/xpolicylab_runtime.yaml").write_text(yaml.safe_dump(model_cfg))
     experiment_cfg.write_text(
-        "model_config: models/pretrain.yaml\n"
+        "model_config: models/xpolicylab_runtime.yaml\n"
         "dataset_config: datasets/xpolicylab_runtime.yaml\n",
         encoding="utf-8",
     )

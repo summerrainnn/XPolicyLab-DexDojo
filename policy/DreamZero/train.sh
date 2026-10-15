@@ -98,7 +98,9 @@ action_horizon="${DREAMZERO_ACTION_HORIZON:-24}"
 num_frames="${DREAMZERO_NUM_FRAMES:-33}"
 max_chunk_size="${DREAMZERO_MAX_CHUNK_SIZE:-4}"
 report_to="${DREAMZERO_REPORT_TO:-${REPORT_TO:-tensorboard}}"
-native_dojo_action="${DREAMZERO_NATIVE_DOJO_ACTION:-false}"
+native_default=false
+[[ "${env_cfg_type}" == "marvin_wuji" ]] && native_default=true
+native_dojo_action="${DREAMZERO_NATIVE_DOJO_ACTION:-${native_default}}"
 data_config="${DREAMZERO_DATA_CONFIG:-dreamzero/agibot_relative}"
 if [ "${native_dojo_action}" = "1" ] || [ "${native_dojo_action}" = "true" ]; then
     native_dojo_action=true
@@ -230,7 +232,9 @@ torchrun --nproc_per_node "${num_gpus}" --standalone groot/vla/experiment/experi
     pretrained_model_path="${pretrained_model_path}" \
     ++action_head_cfg.config.skip_component_loading=true \
     ++action_head_cfg.config.defer_lora_injection=true \
-    ++action_head_cfg.config.native_dojo_action="${native_dojo_action}"
+    ++action_head_cfg.config.native_dojo_action="${native_dojo_action}" \
+    ++action_head_cfg.config.native_dojo_action_dim="${action_dim}" \
+    max_action_dim="${action_dim}"
 )
 
 if [ "${DREAMZERO_DRY_RUN:-0}" = "1" ]; then

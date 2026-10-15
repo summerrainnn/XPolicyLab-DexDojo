@@ -84,6 +84,10 @@ def _pad_or_trim(values: np.ndarray, dim: int) -> np.ndarray:
 
 def _packed_to_agibot_vectors(packed: np.ndarray, robot_info: dict) -> np.ndarray:
     packed = np.asarray(packed, dtype=np.float32)
+    if robot_info["ee_dim"] == [20, 20]:
+        if packed.shape[-1] != 54:
+            raise ValueError("Expected complete 54D Marvin joint vector")
+        return packed.copy()
     arm_dims = list(robot_info["arm_dim"])
     ee_dims = list(robot_info["ee_dim"])
     num_steps = packed.shape[0]
@@ -118,7 +122,7 @@ def _pad_v3_state(values: Any, dim: int) -> np.ndarray:
     if values.ndim == 1:
         values = values.reshape(1, -1)
     out = np.zeros((values.shape[0], dim), dtype=np.float32)
-    copy_dim = min(values.shape[-1], 14)
+    copy_dim = min(values.shape[-1], 54 if dim == 54 else 14)
     out[:, :copy_dim] = values[:, :copy_dim]
     return out
 
@@ -730,6 +734,16 @@ def main() -> None:
     missing = [name for name in required if getattr(args, name) is None]
     if missing:
         parser.error(f"Missing required arguments: {', '.join(missing)}")
+
+    if args.env_cfg_type == "marvin_wuji":
+        if args.action_type != "joint":
+            raise ValueError("DreamZero Marvin uses joint actions")
+        global AGIBOT_STATE_DIM, AGIBOT_ACTION_DIM, STATE_MAPPING, ACTION_MAPPING, RELATIVE_ACTION_KEYS
+        AGIBOT_STATE_DIM = AGIBOT_ACTION_DIM = 54
+        STATE_MAPPING = {"left_arm_joint_position": [0, 7], "left_effector_position": [7, 27],
+                         "right_arm_joint_position": [27, 34], "right_effector_position": [34, 54]}
+        ACTION_MAPPING = dict(STATE_MAPPING)
+        RELATIVE_ACTION_KEYS = ["left_arm_joint_position", "right_arm_joint_position"]
 
     source_format = args.source_format
     if source_format is None:

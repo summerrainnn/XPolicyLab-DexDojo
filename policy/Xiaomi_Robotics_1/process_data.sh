@@ -1,3 +1,4 @@
-#!/bin/bash
-echo "[Xiaomi_Robotics_1] No data processing needed for this policy."
-echo "This policy uses pre-trained checkpoints directly."
+#!/usr/bin/env bash
+set -euo pipefail
+echo "Xiaomi upstream provides inference only; no executable training/data recipe is included. Supply a matching trained checkpoint from an external training implementation." >&2
+exit 2

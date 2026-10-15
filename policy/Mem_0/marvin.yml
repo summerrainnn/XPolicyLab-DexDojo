@@ -39,8 +39,8 @@ execution_module:
     hidden_size: 2048
     add_pos_embed: true
     max_seq_len: 1024
-    action_dim: 16
-    state_dim: 16
+    action_dim: 54
+    state_dim: 54
     action_horizon: 30
     repeated_diffusion_steps: 8
     noise_beta_alpha: 1.5

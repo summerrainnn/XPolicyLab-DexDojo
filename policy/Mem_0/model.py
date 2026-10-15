@@ -25,6 +25,7 @@ from PIL import Image
 from termcolor import cprint
 
 from XPolicyLab.model_template import ModelTemplate
+from XPolicyLab.utils.robot_layout import RobotLayout
 from XPolicyLab.utils.process_data import (
     get_robot_action_dim_info,
     pack_robot_state,
@@ -87,6 +88,10 @@ class Model(ModelTemplate):
         self.action_type = model_cfg["action_type"]
         self.env_cfg_type = model_cfg["env_cfg_type"]
         self.robot_action_dim_info = get_robot_action_dim_info(self.env_cfg_type)
+        self.layout = RobotLayout.from_info(self.robot_action_dim_info)
+        self.arm_slots = tuple(max(7, n) for n in self.layout.arm_dims)
+        self.model_dim = sum(self.arm_slots) + sum(self.layout.hand_dims)
+        self.norm_dims = 14 if self.model_dim == 16 else self.model_dim
 
         assert len(self.robot_action_dim_info["arm_dim"]) == 2, (
             "Mem_0 expects a dual-arm robot (e.g. env_cfg_type=arx_x5 -> dual_x5); "
@@ -108,6 +113,8 @@ class Model(ModelTemplate):
         )
 
         cfg = OmegaConf.create(dict(model_cfg))
+        cfg.execution_module.action_model.state_dim = self.model_dim
+        cfg.execution_module.action_model.action_dim = self.model_dim
         qwen_path = _resolve_path(cfg.execution_module.qwen_vl.get("model_path", ""))
         cfg.execution_module.qwen_vl.model_path = qwen_path
         if not os.path.isdir(qwen_path):
@@ -156,12 +163,12 @@ class Model(ModelTemplate):
         if self.norm_way == "minmax" and self._stats.get("state_min") is not None:
             return normalize_arms(
                 state_vec, None, None,
-                self._stats["state_min"], self._stats["state_max"], arm_dims=ARM_NORM_DIMS,
+                self._stats["state_min"], self._stats["state_max"], arm_dims=self.norm_dims,
             )
         if self.norm_way == "meanstd" and self._stats.get("state_mean") is not None:
             return normalize_arms(
                 state_vec, self._stats["state_mean"], self._stats["state_std"],
-                None, None, arm_dims=ARM_NORM_DIMS,
+                None, None, arm_dims=self.norm_dims,
             )
         if self.norm_way == "quantile" and self._stats.get("state_q01") is not None:
             return normalize_arms(
@@ -174,12 +181,12 @@ class Model(ModelTemplate):
         if self.norm_way == "minmax" and self._stats.get("action_min") is not None:
             return denormalize_arms(
                 action_vec, None, None,
-                self._stats["action_min"], self._stats["action_max"], arm_dims=ARM_NORM_DIMS,
+                self._stats["action_min"], self._stats["action_max"], arm_dims=self.norm_dims,
             )
         if self.norm_way == "meanstd" and self._stats.get("action_mean") is not None:
             return denormalize_arms(
                 action_vec, self._stats["action_mean"], self._stats["action_std"],
-                None, None, arm_dims=ARM_NORM_DIMS,
+                None, None, arm_dims=self.norm_dims,
             )
         if self.norm_way == "quantile" and self._stats.get("action_q01") is not None:
             return denormalize_arms(
@@ -187,21 +194,6 @@ class Model(ModelTemplate):
                 quantile=True, q01=self._stats["action_q01"], q99=self._stats["action_q99"],
             )
         return action_vec
-
-    def _packed14_to_env16(self, packed14: np.ndarray) -> np.ndarray:
-        env16 = np.zeros(16, dtype=np.float32)
-        env16[0:6] = packed14[0:6]
-        env16[6] = 0.0
-        env16[7] = packed14[6]
-        env16[8:14] = packed14[7:13]
-        env16[14] = 0.0
-        env16[15] = packed14[13]
-        return env16
-
-    def _env16_to_packed14(self, env16: np.ndarray) -> np.ndarray:
-        return np.concatenate(
-            [env16[0:6], env16[7:8], env16[8:14], env16[15:16]], axis=0
-        ).astype(np.float32)
 
     def encode_obs(self, observation: dict) -> dict:
         color = observation["vision"]["cam_head"]["color"]
@@ -211,8 +203,7 @@ class Model(ModelTemplate):
         packed14 = pack_robot_state(
             observation, self.action_type, self.robot_action_dim_info, source_type="obs"
         ).reshape(-1)
-        env16 = self._packed14_to_env16(packed14)
-        model16 = env_to_model_layout(env16)
+        model16 = self.layout.grouped(packed14, self.arm_slots)
         norm_state = self._normalize_state(model16)
 
         instruction = (
@@ -236,8 +227,7 @@ class Model(ModelTemplate):
         out = []
         for step in flat:
             denorm = self._denormalize_action(step.astype(np.float32))
-            env16 = model_to_env_layout(denorm)
-            packed14 = self._env16_to_packed14(env16)
+            packed14 = self.layout.interleaved(denorm, self.arm_slots)
             out.append(
                 unpack_robot_state(
                     packed14, self.action_type, self.robot_action_dim_info, source_type="obs"

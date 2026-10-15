@@ -91,7 +91,7 @@ def build_arm_ee(ee_poses: np.ndarray, gripper: np.ndarray):
     """Build the 3 xwam EE fields for one arm: ee_pos (T,3) / ee_rotm (T,9) / gripper_pos (T,1)."""
     pos, R_new = ee_pose_to_pos_rotm(ee_poses)
     rotm_flat = R_new.reshape(R_new.shape[0], 9)
-    grip = np.asarray(gripper, dtype=np.float64).reshape(-1, 1)
+    grip = np.asarray(gripper, dtype=np.float64).reshape(len(ee_poses), -1)
     return pos, rotm_flat, grip
 
 

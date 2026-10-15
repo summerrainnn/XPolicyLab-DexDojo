@@ -570,8 +570,8 @@ class LeRobotSingleDataset(Dataset):
             if self.is_lerobot_v3 and self.tag == EmbodimentTag.AGIBOT and (
                 self._uses_native_dojo_layout() or not modality_meta_path.exists()
             ):
-                state_mapping = DOJO_NATIVE_STATE_MAPPING if self._uses_native_dojo_layout() else AGIBOT_STATE_MAPPING
-                action_mapping = DOJO_NATIVE_ACTION_MAPPING if self._uses_native_dojo_layout() else AGIBOT_ACTION_MAPPING
+                state_mapping = self._native_dojo_mapping() if self._uses_native_dojo_layout() else AGIBOT_STATE_MAPPING
+                action_mapping = self._native_dojo_mapping() if self._uses_native_dojo_layout() else AGIBOT_ACTION_MAPPING
                 modality_meta = {
                     "state": {
                         key: {
@@ -612,6 +612,16 @@ class LeRobotSingleDataset(Dataset):
             with open(modality_meta_path, "r") as f:
                 modality_meta = LeRobotModalityMetadata.model_validate(json.load(f))
             return modality_meta
+
+    def _native_dojo_mapping(self):
+        with open(self.dataset_path / LE_ROBOT_INFO_FILENAME) as fp:
+            width = json.load(fp)["features"]["action"]["shape"][0]
+        if width == 54:
+            return {"left_arm_joint_position": [0,7], "left_effector_position": [7,27],
+                    "right_arm_joint_position": [27,34], "right_effector_position": [34,54]}
+        if width != 14:
+            raise ValueError(f"Unsupported native RoboDojo width {width}")
+        return DOJO_NATIVE_STATE_MAPPING
 
     def _uses_native_dojo_layout(self) -> bool:
         if self.tag != EmbodimentTag.AGIBOT:
@@ -791,8 +801,8 @@ class LeRobotSingleDataset(Dataset):
             if self._uses_native_dojo_layout():
                 state = np.stack(parquet_data["observation.state"])
                 action = np.stack(parquet_data["action"])
-                state_mapping = DOJO_NATIVE_STATE_MAPPING
-                action_mapping = DOJO_NATIVE_ACTION_MAPPING
+                state_mapping = self._native_dojo_mapping()
+                action_mapping = self._native_dojo_mapping()
             else:
                 state = _agibot_pad(np.stack(parquet_data["observation.state"]), AGIBOT_STATE_DIM)
                 action = _agibot_pad(np.stack(parquet_data["action"]), AGIBOT_ACTION_DIM)
@@ -806,7 +816,7 @@ class LeRobotSingleDataset(Dataset):
 
         stats = {}
         for key, chunks in samples.items():
-            action_mapping = DOJO_NATIVE_ACTION_MAPPING if self._uses_native_dojo_layout() else AGIBOT_ACTION_MAPPING
+            action_mapping = self._native_dojo_mapping() if self._uses_native_dojo_layout() else AGIBOT_ACTION_MAPPING
             start, end = action_mapping.get(key, (0, 0))
             dim = max(end - start, 1)
             values = np.concatenate(chunks, axis=0) if chunks else np.zeros((1, dim), dtype=np.float32)

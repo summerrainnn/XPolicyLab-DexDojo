@@ -370,11 +370,17 @@ def _compose_relative_action(
     frame_index: int,
     action_length: int,
 ) -> np.ndarray:
-    action = np.zeros((action_length, ACTION_DIM), dtype=np.float32)
+    hand_dim = proprio["left"]["gripper"].shape[-1]
+    arm_dim = proprio["left"]["arm_joint"].shape[-1]
+    block = 33 if (hand_dim, arm_dim) == (20, 7) else 14
+    if (hand_dim, arm_dim) not in ((20, 7), (1, 6)):
+        raise ValueError("Unsupported XR0 robot layout")
+    width = 66 if block == 33 else 32
+    action = np.zeros((action_length, width), dtype=np.float32)
     num_frames = proprio["left"]["ee_pos"].shape[0]
     steps = min(action_length, num_frames - frame_index)
 
-    for side, offset in (("left", 0), ("right", 14)):
+    for side, offset in (("left", 0), ("right", block)):
         rotm = proprio[side]["ee_rotm"][frame_index].reshape(3, 3)
         pos = proprio[side]["ee_pos"][frame_index]
         target_pos = action_targets[side]["ee_pos"][frame_index : frame_index + steps]
@@ -394,8 +400,8 @@ def _compose_relative_action(
 
         action[:, offset + 0 : offset + 3] = ee_pos_delta
         action[:, offset + 3 : offset + 6] = ee_aa_delta
-        action[:, offset + 6 : offset + 7] = gripper_delta
-        action[:, offset + 7 : offset + 13] = joint_delta
+        action[:, offset + 6 : offset + 6 + hand_dim] = gripper_delta
+        action[:, offset + 6 + hand_dim : offset + 6 + hand_dim + arm_dim] = joint_delta
 
     return action
 
@@ -541,7 +547,7 @@ def save_stats(output_dir: Path, mean: list[list[float]], std: list[list[float]]
     stats_path = output_dir / "action_stats.json"
     payload = {
         "action_length": ACTION_LENGTH,
-        "action_dim": ACTION_DIM,
+        "action_dim": len(mean[0]),
         "mean": mean,
         "std": std,
         "generated_at": datetime.now().isoformat(timespec="seconds"),

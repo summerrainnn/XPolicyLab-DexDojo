@@ -391,6 +391,11 @@ class HDF5VLADataset:
             raise ValueError(f"Expected state dim {expected_dim}, got {values.shape[-1]}")
 
         uni_vec = np.zeros(values.shape[:-1] + (self.STATE_DIM,), dtype=np.float32)
+        if (left_arm_dim, right_arm_dim) == (27, 27):
+            if self.STATE_DIM < 54:
+                raise ValueError("RDT unified vector cannot contain Marvin state")
+            uni_vec[..., :54] = values
+            return uni_vec
         left_values = values[..., :left_arm_dim]
         right_values = values[..., left_arm_dim:]
 

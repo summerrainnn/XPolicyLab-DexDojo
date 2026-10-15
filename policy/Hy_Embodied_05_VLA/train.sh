@@ -52,6 +52,23 @@ if [[ ! -f "${TRAIN_SCRIPT}" ]]; then
   exit 1
 fi
 
+if [[ "${3:-}" == "marvin_wuji" ]]; then
+  if [[ "${4:-}" != "ee" ]]; then
+    echo "Hy-VLA uses EE pose actions" >&2
+    exit 1
+  fi
+  export EXP_ID="${1}-${2}-${3}-${4}-${5}"
+  export EXP_ROOT="${EXP_ROOT:-${POLICY_DIR}/checkpoints}"
+  export NORM_PATH="${NORM_PATH:-${POLICY_DIR}/data/${1}-${2}-${3}-${4}/norm_stats.pkl}"
+  export CUDA_VISIBLE_DEVICES="${6:?GPU list required}"
+  export NUM_MACHINES="${NUM_MACHINES:-1}" CHIEF_IP="${CHIEF_IP:-127.0.0.1}" INDEX="${INDEX:-0}"
+  IFS=',' read -r -a hy_gpus <<< "${CUDA_VISIBLE_DEVICES}"
+  export NPROC_PER_NODE="${NPROC_PER_NODE:-${#hy_gpus[@]}}"
+  hy_seed=$5
+  shift 6
+  set -- "dataset.action_chunk_size=${HY_CHUNK_SIZE:-25}" dataset.state_dim=58 +dataset.action_dim=58 "seed=${hy_seed}" "$@"
+fi
+
 cd "${HY_VLA_ROOT}"
 echo "[hy_vla] launching Hy-VLA RoboDojo/UMI training recipe"
 exec bash "${TRAIN_SCRIPT}" "$@"

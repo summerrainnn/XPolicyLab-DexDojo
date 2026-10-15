@@ -59,7 +59,9 @@ class QwenA1DatasetConfig(DatasetConfig):
 
     def __post_init__(self):
         super().__post_init__()
-        inputs = list(self.data_transforms.inputs)
+        inputs = [PadStateAndActionTransformFn(max_state_dim=self.max_state_dim, max_action_dim=self.max_action_dim)
+                  if isinstance(t, PadStateAndActionTransformFn) else t for t in self.data_transforms.inputs]
+        self.data_transforms = replace(self.data_transforms, inputs=inputs)
         has_delta = any(isinstance(t, DeltaActionTransformFn) for t in inputs)
         if self.action_mode == "delta":
             if not has_delta:  # add DeltaActionTransformFn

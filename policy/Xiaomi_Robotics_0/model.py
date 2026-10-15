@@ -284,12 +284,12 @@ def _extract_robot_state(observation: dict[str, Any]) -> dict[str, np.ndarray]:
     return {
         "left_ee_pos": left_pos,
         "left_ee_rotm": left_rotm,
-        "left_gripper_pos": _as_1d(state["left_ee_joint_state"], 1),
-        "left_arm_joint": _as_1d(state["left_arm_joint_state"], 6),
+        "left_gripper_pos": np.asarray(state["left_ee_joint_state"], dtype=np.float32).reshape(-1),
+        "left_arm_joint": np.asarray(state["left_arm_joint_state"], dtype=np.float32).reshape(-1),
         "right_ee_pos": right_pos,
         "right_ee_rotm": right_rotm,
-        "right_gripper_pos": _as_1d(state["right_ee_joint_state"], 1),
-        "right_arm_joint": _as_1d(state["right_arm_joint_state"], 6),
+        "right_gripper_pos": np.asarray(state["right_ee_joint_state"], dtype=np.float32).reshape(-1),
+        "right_arm_joint": np.asarray(state["right_arm_joint_state"], dtype=np.float32).reshape(-1),
     }
 
 

@@ -23,6 +23,19 @@ if [[ -z "${bench_name}" || -z "${ckpt_name}" || -z "${env_cfg_type}" || -z "${a
   exit 1
 fi
 
+if [[ "${env_cfg_type}" == "marvin_wuji" ]]; then
+    dataset_name="${bench_name}-${ckpt_name}-${env_cfg_type}-${action_type}"
+    dataset_root="${EVENTVLA_DATA_ROOT:-${SCRIPT_DIR}/data}"
+    dataset_path="${dataset_root}/${dataset_name}"
+    if [[ ! -f "${dataset_path}/meta/info.json" ]]; then
+        echo "Set EVENTVLA_DATA_ROOT to your exported LeRobot v2.1 dataset parent; expected ${dataset_path}." >&2
+        echo "Export demonstrations with teleop.scripts.convert_lerobot_v21, retaining keyframe_steps annotations for memory supervision." >&2
+        exit 2
+    fi
+    python "${SCRIPT_DIR}/../Abot_M0/prepare_marvin.py" "${dataset_path}"
+    exit 0
+fi
+
 if [[ -n "${expert_data_num}" ]]; then
   echo "[EventVLA] note: expert_data_num=${expert_data_num} is not applied; upstream dataset is used as a whole." >&2
 fi

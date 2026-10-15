@@ -846,6 +846,7 @@ class SpiritVLAPolicy(nn.Module):
         strict: bool = True,
         train: bool = False,
         qwen_device_map: str | dict | None = None,
+        robot_dim: int | None = None,
     ):
         config_path = os.path.join(ckpt_path, "config.json")
         if os.path.exists(config_path):
@@ -858,6 +859,12 @@ class SpiritVLAPolicy(nn.Module):
             valid_keys = {f.name for f in fields(cfg_cls)}
             return {k: v for k, v in data.items() if k in valid_keys}
 
+        if robot_dim is not None:
+            if not train:
+                raise ValueError("Robot head adaptation is only allowed during training")
+            cfg_dict.update(action_dim=robot_dim, max_action_dim=robot_dim, max_state_dim=robot_dim)
+            cfg_dict.setdefault("input_features", {})["observation.state"] = {"type": "STATE", "shape": [robot_dim]}
+            cfg_dict["output_features"] = {"action": {"type": "ACTION", "shape": [robot_dim]}}
         filtered_cfg = _filter(SpiritVLAConfig, cfg_dict)
         config = SpiritVLAConfig(**filtered_cfg)
         backbone_override = os.environ.get("SPIRIT_BACKBONE_PATH", "").strip()
@@ -887,5 +894,13 @@ class SpiritVLAPolicy(nn.Module):
                     raise RuntimeError("[ERROR]: Current environment does not support Flash_Attention; please check the config.json configuration!")
         
         state_dict = safe_load_file(weight_path, device=load_device)
+        if robot_dim is not None:
+            current = model.state_dict()
+            mismatched = [k for k in state_dict if k in current and state_dict[k].shape != current[k].shape]
+            allowed = ("state_proj", "action_in_proj", "action_out_proj", "normalize_inputs", "normalize_targets", "unnormalize_outputs")
+            if any(not k.startswith(allowed) for k in mismatched):
+                raise ValueError(f"Unexpected robot-head mismatch: {mismatched}")
+            state_dict = {k: v for k, v in state_dict.items() if k not in mismatched}
+            strict = False
         model.load_state_dict(state_dict, strict=strict)
         return model

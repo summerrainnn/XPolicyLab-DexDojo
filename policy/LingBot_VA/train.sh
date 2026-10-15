@@ -38,8 +38,10 @@ mkdir -p "${ckpt_dir}"
 export CUDA_VISIBLE_DEVICES="${gpu_id}"
 export NGPU
 NGPU="$(tr ',' '\n' <<< "${CUDA_VISIBLE_DEVICES}" | sed '/^$/d' | wc -l | xargs)"
-export CONFIG_NAME="${LINGBOT_VA_CONFIG_NAME:-robotwin30_train}"
-export LINGBOT_VA_DATASET_PATH="${LINGBOT_VA_DATASET_PATH:-${LEROBOT_DATA_ROOT}/${LEROBOT_DATASET_REPO_ID}}"
+default_config=robotwin30_train
+[[ "${env_cfg_type}" == "marvin_wuji" ]] && default_config=marvin_train
+export CONFIG_NAME="${LINGBOT_VA_CONFIG_NAME:-${default_config}}"
+export LINGBOT_VA_DATASET_PATH="${LINGBOT_VA_DATASET_PATH:-${POLICY_DIR}/data/${bench_name}-${ckpt_name}-${env_cfg_type}-${action_type}}"
 export LINGBOT_VA_BASE_MODEL_PATH="${LINGBOT_VA_BASE_MODEL_PATH:-}"
 export PYTHONHASHSEED="${seed}"
 

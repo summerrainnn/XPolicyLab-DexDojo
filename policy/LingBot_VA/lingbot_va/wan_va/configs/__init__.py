@@ -1,3 +1,4 @@
+from .va_marvin_train_cfg import va_marvin_train_cfg
 # Copyright 2024-2025 The Robbyant Team Authors. All rights reserved.
 from .va_franka_cfg import va_franka_cfg
 from .va_robotwin_cfg import va_robotwin_cfg
@@ -13,6 +14,7 @@ from .va_libero_i2va import va_libero_i2va_cfg
 from .va_robotwin30_train_cfg import va_robotwin30_train_cfg
 
 VA_CONFIGS = {
+    'marvin_train': va_marvin_train_cfg,
     'robotwin': va_robotwin_cfg,
     'franka': va_franka_cfg,
     'robotwin_i2av': va_robotwin_i2va_cfg,

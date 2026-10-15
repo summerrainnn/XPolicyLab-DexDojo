@@ -9,7 +9,7 @@ eval_batch: false
 protocol: ws
 host: 127.0.0.1
 port: null
-config_name: robotwin30_train
+config_name: marvin_train
 checkpoint_path: null
 base_model_path: null
 action_type: joint

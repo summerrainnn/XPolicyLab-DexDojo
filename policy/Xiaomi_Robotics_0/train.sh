@@ -71,13 +71,17 @@ echo "[Xiaomi_Robotics_0] linked ${ckpt_dir} -> ${xr0_artifact_dir}"
 
 cd "${XR0_ROOT}"
 
-bash scripts/train.sh \
+robot_args=()
+if [[ "${env_cfg_type}" == "marvin_wuji" ]]; then
+  robot_args+=("model.params.model.state_shape=[1,66]" "model.params.model.action_shape=[30,66]")
+fi
+bash scripts/train.sh "${robot_args[@]}" \
   "data=${data_config_name}" \
   "trainer.project=xr0" \
   "trainer.exp_name=${ckpt_setting}" \
   "trainer.default_root_dir=${run_root}" \
   "trainer.seed=${seed}" \
-  "model.params.model.pretrained=${pretrained_path}" \
+  "model.params.pretrained=${pretrained_path}" \
   "model.params.model.async_train=${XR0_ASYNC_TRAIN:-false}" \
   "trainer.max_steps=${XR0_MAX_STEPS:-100000}" \
   "trainer.save_interval=${XR0_SAVE_INTERVAL:-5000}"

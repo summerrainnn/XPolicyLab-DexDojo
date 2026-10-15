@@ -190,6 +190,16 @@ def _extract_proprio_fields(data: dict[str, Any], side: str) -> dict[str, np.nda
 
 def build_state_vector(proprio: dict[str, dict[str, np.ndarray]], frame_index: int) -> list[float]:
     """Pack bimanual proprio into a fixed 32D state vector for DM0."""
+    if proprio["left"]["gripper"].shape[-1] == 20:
+        parts = []
+        for side in ("left", "right"):
+            item = proprio[side]
+            parts.extend([item["arm_joint"][frame_index], item["gripper"][frame_index],
+                          item["ee_pos"][frame_index], rotm2aa(item["ee_rotm"][frame_index])])
+        state = np.concatenate(parts).astype(np.float32)
+        if state.size != 66:
+            raise ValueError("DM0 Marvin state must have 66 dimensions")
+        return state.tolist()
     state = np.zeros(STATE_DIM, dtype=np.float32)
 
     for side, base in (("left", 0), ("right", 14)):

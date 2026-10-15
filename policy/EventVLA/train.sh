@@ -1,6 +1,21 @@
 #!/bin/bash
 set -euo pipefail
 
+# Accept the standard XPolicyLab tuple as well as the upstream memory options.
+if [[ $# -ge 6 && "${3}" == "marvin_wuji" ]]; then
+    bench=$1; task=$2; robot=$3; action=$4; seed=$5; gpu=$6
+    shift 6
+    [[ "$action" == joint ]] || { echo "EventVLA requires joint actions" >&2; exit 2; }
+    policy_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    export RUN_ID="${bench}-${task}-${robot}-${action}-${seed}"
+    export EVENTVLA_DATA_ROOT="${EVENTVLA_DATA_ROOT:-${policy_dir}/data}"
+    export EVENTVLA_MARVIN_DATASET="${EVENTVLA_MARVIN_DATASET:-${bench}-${task}-${robot}-${action}}"
+    python "${policy_dir}/../Abot_M0/prepare_marvin.py" "${EVENTVLA_DATA_ROOT}/${EVENTVLA_MARVIN_DATASET}"
+    export CUDA_VISIBLE_DEVICES="$gpu"
+    export EVENTVLA_NUM_PROCESSES="$(awk -F, '{print NF}' <<< "$gpu")"
+    set -- marvin_wuji pure_image_keyframe_memory teacher --framework.action_model.action_dim 54 --framework.action_model.state_dim 54 --seed "$seed" "$@"
+fi
+
 if [[ $# -lt 3 ]]; then
     echo "Usage: bash train.sh <data_mix> <memory_ablation_mode> <keyframe_memory_policy> [data_root_dir] [train_args...]"
     echo "Example: bash train.sh robodojo pure_image_keyframe_memory teacher"

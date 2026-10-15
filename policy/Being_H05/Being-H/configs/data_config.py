@@ -403,6 +403,31 @@ class RoboDojoQposDataConfig(RoboTwinQposDataConfig):
     }
 
 
+class MarvinQposDataConfig(RoboDojoQposDataConfig):
+    """54 continuous joints in disjoint slots of Being-H's unified space."""
+    _fields = (('left_arm_joint_position', 0, 7),
+               ('left_gripper_position', 7, 27),
+               ('right_arm_joint_position', 27, 34),
+               ('right_gripper_position', 34, 54))
+    UNIFIED_MAPPING = {}
+    for _kind in ('state', 'action'):
+        for _name, _start, _end in _fields:
+            UNIFIED_MAPPING[f'{_kind}.{_name}'] = (_start, _end)
+    state_normalization_modes = dict.fromkeys(RoboDojoQposDataConfig.STATE_KEYS, 'min_max')
+    action_normalization_modes = dict.fromkeys(RoboDojoQposDataConfig.ACTION_KEYS, 'min_max')
+
+    def get_feature_meta(self):
+        return {f'{kind}.{name}': ('continuous joint angles in radians', end-start)
+                for kind in ('state', 'action') for name, start, end in self._fields}
+
+    def define_modalities(self):
+        modalities = {'language.instruction': ModalityDef(source_column='task_index', start=0, end=0)}
+        for kind, column in (('state', 'observation.state'), ('action', 'action')):
+            for name, start, end in self._fields:
+                modalities[f'{kind}.{name}'] = ModalityDef(source_column=column, start=start, end=end)
+        return self.add_video_modality(modalities)
+
+
 class RoboTwinFrankaQposDataConfig(BaseDataConfig):
     """
     Data config for RoboTwin with franka-panda dual-arm robot.
@@ -639,6 +664,7 @@ DATA_CONFIG_MAP = {
     "robotwin_qpos_piper": RoboTwinQposDataConfig,
     "robotwin_qpos_ur5": RoboTwinQposDataConfig,
     
+    "marvin_qpos": MarvinQposDataConfig,
     "robodojo_qpos": RoboDojoQposDataConfig, # RoboDojo matches RoboTwin, so it inherits the RoboTwin config
     # franka-panda: 16-dim dual arm 7+1+7+1
     "robotwin_qpos_franka": RoboTwinFrankaQposDataConfig,

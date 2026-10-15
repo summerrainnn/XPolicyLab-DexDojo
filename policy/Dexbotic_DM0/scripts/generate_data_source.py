@@ -35,7 +35,7 @@ ROBODOJO_DATASET = {{
 }}
 
 meta_data = {{
-    "non_delta_mask": [6, 20],
+    "non_delta_mask": {list(range(7, 27)) + list(range(40, 60)) if "-marvin_wuji-" in args.data_key else [6, 20]},
     "periodic_mask": None,
     "periodic_range": None,
 }}

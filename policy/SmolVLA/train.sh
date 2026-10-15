@@ -34,10 +34,25 @@ echo "[SmolVLA] repo_id=${REPO_ID}"
 echo "[SmolVLA] HF_LEROBOT_HOME=${HF_LEROBOT_HOME}"
 echo "[SmolVLA] checkpoint_dir=${OUTPUT_DIR}"
 
+policy_path="${SMOVLA_PRETRAINED_PATH:-lerobot/smolvla_base}"
+state_dim=14
+if [[ "${env_cfg_type}" == "marvin_wuji" ]]; then
+  state_dim=54
+  init_path="${POLICY_DIR}/checkpoints/${ckpt_setting}-initialization"
+  python "${POLICY_DIR}/prepare_marvin_checkpoint.py" "${policy_path}" "${init_path}"
+  policy_path="${init_path}"
+fi
+input_features="$(python - "$state_dim" <<'PYJSON'
+import json, sys
+features = {"observation.state": {"type":"STATE", "shape":[int(sys.argv[1])]}}
+features.update({f"observation.images.camera{i}": {"type":"VISUAL", "shape":[3,256,256]} for i in (1,2,3)})
+print(json.dumps(features))
+PYJSON
+)"
 lerobot-train \
-  --policy.path=lerobot/smolvla_base \
+  --policy.path="${policy_path}" \
   --policy.repo_id=DaMiTian/smolvla-aloha-bimanual \
-  --policy.input_features='{"observation.state":{"type":"STATE","shape":[14]},"observation.images.camera1":{"type":"VISUAL","shape":[3,256,256]},"observation.images.camera2":{"type":"VISUAL","shape":[3,256,256]},"observation.images.camera3":{"type":"VISUAL","shape":[3,256,256]}}' \
+  --policy.input_features="${input_features}" \
   --dataset.repo_id=${REPO_ID} \
   --dataset.video_backend=${VIDEO_BACKEND} \
   --output_dir=${OUTPUT_DIR} \

@@ -123,8 +123,16 @@ class RoboDojoArxX5H50Q99DataConfig(XPolicyArxX5DataConfig):
     action_indices = list(range(50))
 
 
+class MarvinDataConfig(XPolicyArxX5DataConfig):
+    state_key_dims = dict(zip(XPolicyArxX5DataConfig.state_keys, (7,20,7,20)))
+    action_key_dims = dict(zip(XPolicyArxX5DataConfig.action_keys, (7,20,7,20)))
+    modality_key_ranges = {kind: dict(zip(("left_joints","left_gripper","right_joints","right_gripper"),
+                                        ((0,7),(7,27),(27,34),(34,54)))) for kind in ("state","action")}
+
+
 ROBOT_TYPE_CONFIG_MAP = {
     "xpolicylab_arx_x5": XPolicyArxX5DataConfig(),
+    "marvin_wuji": MarvinDataConfig(),
     "robodojo_arx_x5_h50_q99": RoboDojoArxX5H50Q99DataConfig(),
 }
 
@@ -159,5 +167,5 @@ if _runtime_dataset_name:
     DATASET_NAMED_MIXTURES[
         os.environ.get("STARVLA_XPOLICY_DATA_MIX", "xpolicylab_runtime")
     ] = [
-        (_runtime_dataset_name, 1.0, "xpolicylab_arx_x5"),
+        (_runtime_dataset_name, 1.0, "marvin_wuji" if "-marvin_wuji-" in _runtime_dataset_name else "xpolicylab_arx_x5"),
     ]

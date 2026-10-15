@@ -126,6 +126,9 @@ export HF_DATASETS_CACHE="${HF_DATASETS_CACHE:-${SCRIPT_DIR}/.cache/hf_datasets}
 mkdir -p "${GALAXEA_FM_OUTPUT_DIR}/${GALAXEA_CKPT_RUN_ID}" "${GALAXEA_FM_DATASET_STATS_CACHE_DIR}" "${HF_DATASETS_CACHE}"
 logger_mode="${GALAXEA_LOGGER_MODE:-disabled}"
 
+if [[ "${env_cfg_type}" == "marvin_wuji" ]]; then
+  extra_overrides+=("data=xpolicylab/dual_arm_joint_marvin")
+fi
 action_dim="$(bash "${UTILS_DIR}/get_action_dim.sh" "${ROOT_DIR}" "${env_cfg_type}" 2>/dev/null || echo "?")"
 
 echo -e "\033[33m[train] bench_name=${bench_name} ckpt_name=${ckpt_name} env_cfg_type=${env_cfg_type} action_type=${action_type}\033[0m"

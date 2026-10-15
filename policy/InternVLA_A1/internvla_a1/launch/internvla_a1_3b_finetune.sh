@@ -133,4 +133,7 @@ ARGS=(
     --wandb.mode=offline
 )
 
+if [[ "${INTERNVLA_ROBOT_DIM:-32}" == 54 ]]; then
+  ARGS+=(--policy.max_state_dim=54 --policy.max_action_dim=54 --dataset.max_state_dim=54 --dataset.max_action_dim=54)
+fi
 accelerate launch "${ARGS[@]}"

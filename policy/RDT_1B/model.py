@@ -164,7 +164,7 @@ class Model(ModelTemplate):
         left_arm_dim, right_arm_dim = arm_dim
         return {
             "episode_len": int(self.model_cfg.get("episode_len", 10000)),
-            "state_dim": int(left_arm_dim + 1 + right_arm_dim + 1),
+            "state_dim": int(sum(self.robot_action_dim_info["arm_dim"]) + sum(self.robot_action_dim_info["ee_dim"])),
             "chunk_size": int(self.model_cfg.get("chunk_size", 64)),
             "camera_names": ["cam_high", "cam_right_wrist", "cam_left_wrist"],
         }
@@ -318,6 +318,7 @@ class Model(ModelTemplate):
             "left_arm_dim": self.robot_action_dim_info["arm_dim"][0],
             "right_arm_dim": self.robot_action_dim_info["arm_dim"][1],
         }
+        config["robot_action_dim"] = sum(self.robot_action_dim_info["arm_dim"]) + sum(self.robot_action_dim_info["ee_dim"])
         return config
 
     def _load_text_embedder(self):

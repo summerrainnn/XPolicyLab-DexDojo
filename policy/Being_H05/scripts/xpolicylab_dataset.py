@@ -39,7 +39,7 @@ def write_train_yaml(
     if action_type not in ACTION_TO_DATA_CONFIG:
         raise ValueError(f"unsupported action_type={action_type!r}, expected one of {sorted(ACTION_TO_DATA_CONFIG)}")
 
-    data_config_name = ACTION_TO_DATA_CONFIG[action_type]
+    data_config_name = "marvin_qpos" if "-marvin_wuji-" in data_tag else ACTION_TO_DATA_CONFIG[action_type]
     # None or <=0 means "use all episodes" (-1 in Being-H config).
     num_episodes = int(expert_data_num) if expert_data_num is not None and int(expert_data_num) > 0 else -1
 

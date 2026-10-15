@@ -1,3 +1,4 @@
-#!/bin/bash
-echo "[Xiaomi_Robotics_1] Training is managed externally."
-echo "The training code will be open-sourced in the future."
+#!/usr/bin/env bash
+set -euo pipefail
+echo "Xiaomi upstream provides inference only; no executable training/data recipe is included. Supply a matching trained checkpoint from an external training implementation." >&2
+exit 2

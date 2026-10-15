@@ -64,6 +64,10 @@ def map_action_14_to_30(arr14: np.ndarray) -> np.ndarray:
     EEF poses (dims 0-13) and the 7th joint per arm are unavailable in joint-only
     data and are zero-padded, as sanctioned by the upstream README.
     """
+    if arr14.shape[-1] == 54:
+        return arr14.astype(np.float32, copy=True)
+    if arr14.shape[-1] != 14:
+        raise ValueError(f"Expected joint width 14 or 54, got {arr14.shape}")
     n = arr14.shape[0]
     out = np.zeros((n, 30), dtype=np.float32)
     out[:, 14:20] = arr14[:, 0:6]    # left_joint_0..5
@@ -174,6 +178,8 @@ def main():
     if info.get("codebase_version") != "v2.1":
         print(f"[process_data] WARNING: source codebase {info.get('codebase_version')} != v2.1; "
               "the trainer loader expects v2.1.", flush=True)
+    action_samples = []
+    model_dim = 54 if info["features"]["action"]["shape"][0] == 54 else 30
     ori_fps = int(info["fps"])
     chunks_size = int(info.get("chunks_size", 1000))
     stride = max(1, round(ori_fps / args.target_fps))
@@ -213,6 +219,7 @@ def main():
         act14 = np.stack(df["action"].to_numpy()).astype(np.float32)
         st14 = np.stack(df["observation.state"].to_numpy()).astype(np.float32)
         act30 = map_action_14_to_30(act14)
+        action_samples.append(act30)
         st30 = map_action_14_to_30(st14)
         df["action"] = list(act30)
         df["observation.state"] = list(st30)
@@ -282,12 +289,17 @@ def main():
     # tasks.jsonl: copy source
     (out / "meta" / "tasks.jsonl").write_text((src / "meta" / "tasks.jsonl").read_text())
 
+    all_actions = np.concatenate(action_samples, axis=0)
+    norm_stat = {"q01": np.quantile(all_actions, 0.01, axis=0).tolist(),
+                 "q99": np.quantile(all_actions, 0.99, axis=0).tolist()}
+    (out / "meta/action_norm.json").write_text(json.dumps(norm_stat, indent=2))
+
     # info.json: 30-dim action/state, trimmed episode/frame counts
     out_info = dict(info)
     for key in ("action", "observation.state"):
         feat = dict(info["features"][key])
-        feat["shape"] = [30]
-        feat["names"] = list(ACTION_NAMES_30)
+        feat["shape"] = [model_dim]
+        feat["names"] = list(ACTION_NAMES_30) if model_dim == 30 else [f"joint_{i}" for i in range(54)]
         out_info["features"][key] = feat
     out_info["total_episodes"] = len(new_episodes)
     out_info["total_frames"] = total_frames

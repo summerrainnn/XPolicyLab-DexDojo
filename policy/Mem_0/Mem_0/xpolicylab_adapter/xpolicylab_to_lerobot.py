@@ -73,6 +73,8 @@ STATE_NAMES = [
     "left_gripper", "right_gripper",
 ]
 
+from XPolicyLab.utils.robot_layout import RobotLayout, LEGACY_DUAL
+
 FEATURES = {
     "observation.state": {"dtype": "float32", "shape": (16,), "names": STATE_NAMES},
     "action": {"dtype": "float32", "shape": (16,), "names": STATE_NAMES},
@@ -97,16 +99,9 @@ def read_instruction(data: dict, fallback: str) -> str:
     return fallback
 
 
-def _packed14_to_model16(packed14: np.ndarray) -> np.ndarray:
-    """[LA(6),LGrip,RA(6),RGrip] -> Mem_0 model layout [LA(6),pad,RA(6),pad,LGrip,RGrip]."""
-    out = np.zeros((packed14.shape[0], 16), dtype=np.float32)
-    out[:, 0:6] = packed14[:, 0:6]
-    out[:, 6] = 0.0
-    out[:, 7:13] = packed14[:, 7:13]
-    out[:, 13] = 0.0
-    out[:, 14] = packed14[:, 6]
-    out[:, 15] = packed14[:, 13]
-    return out
+def to_model_layout(packed, robot_action_dim_info):
+    layout = RobotLayout.from_info(robot_action_dim_info)
+    return layout.grouped(packed, tuple(max(7, n) for n in layout.arm_dims))
 
 
 def resolve_dataset_out_dir(
@@ -197,8 +192,8 @@ def pack_episode_state_action(
         ),
         dtype=np.float32,
     )
-    state16 = _packed14_to_model16(state14)
-    action16 = _packed14_to_model16(action14)
+    state16 = to_model_layout(state14, robot_action_dim_info)
+    action16 = to_model_layout(action14, robot_action_dim_info)
     return state16, action16, int(state16.shape[0])
 
 
@@ -253,12 +248,20 @@ def create_mem0_lerobot_dataset(
     *,
     vcodec: str = DEFAULT_VCODEC,
     fps: int = 30,
+    robot_action_dim_info=None,
 ):
     from lerobot.datasets.lerobot_dataset import LeRobotDataset
     from lerobot.datasets.video_utils import encode_video_frames
 
+    layout = RobotLayout.from_info(robot_action_dim_info) if robot_action_dim_info else LEGACY_DUAL
+    slots = tuple(max(7, n) for n in layout.arm_dims)
+    names = [f"{side}_arm_{i}" for side, n in zip(("left", "right"), slots) for i in range(n)]
+    names += [f"{side}_hand_{i}" for side, n in zip(("left", "right"), layout.hand_dims) for i in range(n)]
+    features = dict(FEATURES)
+    for key in ("observation.state", "action"):
+        features[key] = {"dtype": "float32", "shape": (len(names),), "names": names}
     dataset = LeRobotDataset.create(
-        repo_id=repo_id, fps=fps, features=FEATURES, root=out_root, use_videos=True,
+        repo_id=repo_id, fps=fps, features=features, root=out_root, use_videos=True,
     )
     dataset._vcodec = vcodec  # noqa: SLF001
 
@@ -378,7 +381,7 @@ def main() -> None:
     if out_root.exists():
         shutil.rmtree(out_root)
 
-    dataset = create_mem0_lerobot_dataset(out_name, out_root, vcodec=args.vcodec)
+    dataset = create_mem0_lerobot_dataset(out_name, out_root, vcodec=args.vcodec, robot_action_dim_info=robot_action_dim_info)
     use_preview = not args.no_use_preview
 
     written, total_frames = 0, 0

@@ -21,6 +21,9 @@ ckpt_setting="${bench_name}-${ckpt_name}-${env_cfg_type}-${action_type}-${seed}"
 ckpt_dir="${POLICY_DIR}/checkpoints/${ckpt_setting}"
 tfds_dataset_name="${OPENVLA_TFDS_DATASET_NAME:-aloha_${ckpt_setting}}"
 
+if [[ "${env_cfg_type}" == "marvin_wuji" ]]; then
+  export OPENVLA_ACTION_DIM=54 OPENVLA_PROPRIO_DIM=54
+fi
 mkdir -p "${ckpt_dir}"
 
 echo "[OpenVLA_OFT] tfds_dataset_name=${tfds_dataset_name}"

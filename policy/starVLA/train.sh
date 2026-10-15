@@ -41,7 +41,7 @@ if [[ ! -f "${dataset_path}/meta/modality.json" ]]; then
 fi
 
 mkdir -p "$(dirname "${config_yaml}")"
-python - "${base_config_yaml}" "${config_yaml}" "${data_root_dir}" "${data_mix}" "${run_id}" "${seed}" <<'PY'
+python - "${base_config_yaml}" "${config_yaml}" "${data_root_dir}" "${data_mix}" "${run_id}" "${seed}" "${dataset_path}" <<'PY'
 import sys
 import yaml
 
@@ -49,6 +49,11 @@ src, dst, data_root_dir, data_mix, run_id, seed = sys.argv[1:7]
 with open(src, "r", encoding="utf-8") as fp:
     cfg = yaml.safe_load(fp)
 
+import json
+with open(sys.argv[7] + "/meta/info.json") as fp:
+    features = json.load(fp)["features"]
+cfg["framework"]["action_model"]["action_dim"] = features["action"]["shape"][0]
+cfg["framework"]["action_model"]["state_dim"] = features["observation.state"]["shape"][0]
 cfg["run_id"] = run_id
 cfg["seed"] = int(seed)
 cfg.setdefault("datasets", {}).setdefault("vla_data", {})["data_root_dir"] = data_root_dir

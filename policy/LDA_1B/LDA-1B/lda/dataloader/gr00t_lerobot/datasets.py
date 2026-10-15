@@ -109,6 +109,7 @@ def pad_action_state_with_key(
     action_key: str,
     single_arm: bool = False,
     pad_arm_to_7: bool = True,
+    preserve_width: bool = False,
 ) -> np.ndarray:
     """
     Pad the action and state to the max length.
@@ -117,6 +118,10 @@ def pad_action_state_with_key(
     single_arm: if True, set the right arm to be zeros, only for "arm", "left_hand" and "right_hand" action keys
     pad_arm_to_7: if False, keep arm keys at their raw width instead of padding to 7.
     """
+    if preserve_width:
+        if isinstance(action_state, torch.Tensor):
+            action_state = action_state.detach().cpu().numpy()
+        return action_state, np.ones_like(action_state, dtype=bool)
     if "eef_position" in action_key:
         max_length = 3
     elif "eef_rotation" in action_key:
@@ -1712,7 +1717,7 @@ def generate_action_mask_for_used_keys(action_modalities: dict, used_action_keys
                 dim_count = 1
             
             # Check if it's gripper-related
-            is_gripper = "gripper" in subkey.lower()
+            is_gripper = "gripper" in subkey.lower() and dim_count == 1
             
             # Generate mask value for each dimension
             for _ in range(dim_count):
@@ -2162,10 +2167,10 @@ class LeRobotMixtureDataset(Dataset):
                         pad_arm_to_7 = dataset.tag != "arx_x5"
                         for action_key in dataset.modality_keys["action"]:
                             padded_action, mask = pad_action_state_with_key(
-                                data[action_key][history_len:], action_key, dataset_single_arm, pad_arm_to_7=pad_arm_to_7
+                                data[action_key][history_len:], action_key, dataset_single_arm, pad_arm_to_7=pad_arm_to_7, preserve_width=dataset.tag == "marvin_wuji"
                             )
                             padded_history_action, history_mask = pad_action_state_with_key(
-                                data[action_key][:history_len], action_key, dataset_single_arm, pad_arm_to_7=pad_arm_to_7
+                                data[action_key][:history_len], action_key, dataset_single_arm, pad_arm_to_7=pad_arm_to_7, preserve_width=dataset.tag == "marvin_wuji"
                             )
                             if f"{action_key}_mask" in data.keys():
                                 if self.use_delta_action:
@@ -2204,7 +2209,7 @@ class LeRobotMixtureDataset(Dataset):
                         pad_arm_to_7 = dataset.tag != "arx_x5"
                         for action_key in dataset.modality_keys["action"]:
                             padded_action, mask = pad_action_state_with_key(
-                                data[action_key], action_key, dataset_single_arm, pad_arm_to_7=pad_arm_to_7
+                                data[action_key], action_key, dataset_single_arm, pad_arm_to_7=pad_arm_to_7, preserve_width=dataset.tag == "marvin_wuji"
                             )
                             if f"{action_key}_mask" in data.keys():
                                 wrist_mask = raw_data[f"{action_key}_mask"].reshape(-1, 1)[1:]

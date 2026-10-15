@@ -105,7 +105,7 @@ def _feature_vector(names: list[str]) -> dict:
     }
 
 
-def _write_modality_json(dataset_dir: Path) -> None:
+def _write_modality_json(dataset_dir: Path, marvin=False) -> None:
     modality = {
         "state": {
             "left_joints": {
@@ -176,6 +176,10 @@ def _write_modality_json(dataset_dir: Path) -> None:
             "human.action.task_description": {"original_key": "task_index"},
         },
     }
+    if marvin:
+        for kind in ("state", "action"):
+            for key, (start, end) in zip(("left_joints", "left_gripper", "right_joints", "right_gripper"), ((0,7),(7,27),(27,34),(34,54))):
+                modality[kind][key].update(start=start, end=end)
     (dataset_dir / "meta").mkdir(parents=True, exist_ok=True)
     (dataset_dir / "meta" / "modality.json").write_text(
         json.dumps(modality, indent=2),
@@ -190,6 +194,7 @@ def _write_info_json(
     total_videos: int,
     total_tasks: int,
     fps: int,
+    width: int = 14,
 ) -> None:
     info = {
         "codebase_version": "v3.0",
@@ -253,6 +258,9 @@ def _write_info_json(
             "task_index": {"dtype": "int64", "shape": [1], "names": None},
         },
     }
+    if width != 14:
+        for key in ("observation.state", "action"):
+            info["features"][key] = _feature_vector([f"joint_{i}" for i in range(width)])
     (dataset_dir / "meta" / "info.json").write_text(
         json.dumps(info, indent=2),
         encoding="utf-8",
@@ -260,8 +268,8 @@ def _write_info_json(
 
 
 def convert(args: argparse.Namespace) -> None:
-    if args.env_cfg_type != "arx_x5" or args.action_type != "joint":
-        raise NotImplementedError("First starVLA converter supports arx_x5 + joint only.")
+    if args.env_cfg_type not in ("arx_x5", "marvin_wuji") or args.action_type != "joint":
+        raise NotImplementedError("starVLA conversion requires ARX5 or Marvin joint data.")
     robot_action_dim_info = get_robot_action_dim_info(args.env_cfg_type)
 
     source_root = Path(args.root_dir).resolve() / "data" / args.bench_name
@@ -400,7 +408,7 @@ def convert(args: argparse.Namespace) -> None:
     )
     tasks.to_parquet(dataset_dir / "meta" / "tasks.parquet")
 
-    _write_modality_json(dataset_dir)
+    _write_modality_json(dataset_dir, args.env_cfg_type == "marvin_wuji")
     _write_info_json(
         dataset_dir,
         total_episodes=len(episode_rows),
@@ -408,6 +416,7 @@ def convert(args: argparse.Namespace) -> None:
         total_videos=total_videos,
         total_tasks=len(task_to_index),
         fps=fps,
+        width=sum(robot_action_dim_info["arm_dim"]) + sum(robot_action_dim_info["ee_dim"]),
     )
 
     print(f"[starVLA] wrote LeRobot v3 dataset: {dataset_dir}")

@@ -395,7 +395,7 @@ def write_task_info(output_root: Path, task_name: str, task_prompt: str, robot_t
             "prompt": task_prompt,
         },
         "robot_type": robot_type,
-        "state_encoding": "dual_arm_ee",
+        "state_encoding": "joint_absolute" if robot_type == "marvin_wuji" else "dual_arm_ee",
         "fps": fps,
         "camera_videos": CAMERA_VIDEOS,
     }
@@ -452,25 +452,39 @@ def write_episode(
             indent=2,
         )
 
-    left_pose, left_gripper, right_pose, right_gripper = _extract_dual_arm_state(data)
-    source_num_frames = left_pose.shape[0]
-    frame_indices = _frame_indices(source_num_frames, source_fps, target_fps)
-    left_pose = left_pose[frame_indices]
-    left_gripper = left_gripper[frame_indices]
-    right_pose = right_pose[frame_indices]
-    right_gripper = right_gripper[frame_indices]
-    num_frames = left_pose.shape[0]
+    if source_meta.get("source_env_cfg") == "marvin_wuji":
+        from XPolicyLab.utils.process_data import pack_robot_state
+        info = {"arm_dim": [7, 7], "ee_dim": [20, 20]}
+        states = pack_robot_state(data, "joint", info, source_type="dataset", state_type="state")
+        actions = pack_robot_state(data, "joint", info, source_type="dataset", state_type="action")
+        if states.shape != actions.shape:
+            raise ValueError("Marvin state and recorded action timelines must match")
+        frame_indices = _frame_indices(len(states), source_fps, target_fps)
+        num_frames = len(frame_indices)
+        with open(states_dir / "states.jsonl", "w") as states_file:
+            for frame_idx, source_idx in enumerate(frame_indices):
+                states_file.write(json.dumps({"joint_state": states[source_idx].tolist(),
+                    "joint_action": actions[source_idx].tolist(), "timestamp": frame_idx / target_fps}) + "\n")
+    else:
+        left_pose, left_gripper, right_pose, right_gripper = _extract_dual_arm_state(data)
+        source_num_frames = left_pose.shape[0]
+        frame_indices = _frame_indices(source_num_frames, source_fps, target_fps)
+        left_pose = left_pose[frame_indices]
+        left_gripper = left_gripper[frame_indices]
+        right_pose = right_pose[frame_indices]
+        right_gripper = right_gripper[frame_indices]
+        num_frames = left_pose.shape[0]
 
-    with open(states_dir / "states.jsonl", "w") as states_file:
-        for frame_idx in range(num_frames):
-            state_record = {
-                "left_ee_positions": left_pose[frame_idx].astype(np.float64).tolist(),
-                "left_gripper_width": float(left_gripper[frame_idx]),
-                "right_ee_positions": right_pose[frame_idx].astype(np.float64).tolist(),
-                "right_gripper_width": float(right_gripper[frame_idx]),
-                "timestamp": float(frame_idx / target_fps),
-            }
-            states_file.write(json.dumps(state_record) + "\n")
+        with open(states_dir / "states.jsonl", "w") as states_file:
+            for frame_idx in range(num_frames):
+                state_record = {
+                    "left_ee_positions": left_pose[frame_idx].astype(np.float64).tolist(),
+                    "left_gripper_width": float(left_gripper[frame_idx]),
+                    "right_ee_positions": right_pose[frame_idx].astype(np.float64).tolist(),
+                    "right_gripper_width": float(right_gripper[frame_idx]),
+                    "timestamp": float(frame_idx / target_fps),
+                }
+                states_file.write(json.dumps(state_record) + "\n")
 
     images_by_name: Dict[str, np.ndarray] = {}
     for video_name in CAMERA_CANDIDATES:

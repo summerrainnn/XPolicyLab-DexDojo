@@ -8,6 +8,7 @@ from typing import Any
 import numpy as np
 
 from XPolicyLab.model_template import ModelTemplate
+from XPolicyLab.utils.robot_layout import RobotLayout
 from XPolicyLab.utils.process_data import (
     decode_image_bit,
     get_batch_size,
@@ -272,6 +273,7 @@ class Model(ModelTemplate):
         if isinstance(instruction, (list, tuple)):
             instruction = instruction[0] if instruction else ""
 
+        (la, lh), (ra, rh) = RobotLayout.from_info(self.robot_action_dim_info).slices
         additional_info = obs.get("additional_info") or {}
         return {
             "images": {
@@ -280,10 +282,10 @@ class Model(ModelTemplate):
                 "cam_right_wrist": self._extract_image(obs, "cam_right_wrist"),
             },
             "state": {
-                "left_arm": packed_state[0:6],
-                "left_gripper": packed_state[6:7],
-                "right_arm": packed_state[7:13],
-                "right_gripper": packed_state[13:14],
+                "left_arm": packed_state[la],
+                "left_gripper": packed_state[lh],
+                "right_arm": packed_state[ra],
+                "right_gripper": packed_state[rh],
             },
             "task": str(instruction),
             "frequency": float(additional_info.get("frequency", self.default_frequency)),

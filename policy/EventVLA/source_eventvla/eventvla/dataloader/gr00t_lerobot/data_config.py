@@ -983,6 +983,14 @@ class AgilexData50Config:
 
         return ComposedModalityTransform(transforms=transforms)
 
+class MarvinDataConfig(AgilexData50Config):
+    def transform(self):
+        return ComposedModalityTransform(transforms=[
+            StateActionToTensor(apply_to=self.state_keys + self.action_keys),
+            StateActionTransform(apply_to=self.state_keys + self.action_keys,
+                                 normalization_modes={key: "min_max" for key in self.state_keys + self.action_keys}),
+        ])
+
 ROBOT_TYPE_CONFIG_MAP = {
     "libero_franka": Libero4in1DataConfig(),
     "oxe_droid": OxeDroidDataConfig(),
@@ -992,6 +1000,7 @@ ROBOT_TYPE_CONFIG_MAP = {
     "demo_sim_franka_delta_joints": SingleFrankaRobotiqDeltaJointsDataConfig(),
     "arx_x5": ArxX5DataConfig(),
     "robotwin_mem": AgilexData50Config(),
+    "marvin_wuji": MarvinDataConfig(),
     "fourier_gr1_arms_waist": FourierGr1ArmsWaistDataConfig(),
     
     "custom_robot_config": SingleFrankaRobotiqDeltaEefDataConfig(),

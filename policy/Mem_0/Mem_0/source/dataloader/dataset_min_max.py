@@ -395,11 +395,9 @@ class LeRobot_Dataset(Dataset):
         state_full = state_full.float()
         
         # Create mask for dimensions to normalize: [0,1,2,3,4,5,7,8,9,10,11,12] = True, others = False
-        state_normalize_mask = torch.ones(16, dtype=torch.bool)
-        state_normalize_mask[6] = False   # Do not normalize index 6
-        state_normalize_mask[13] = False  # Do not normalize index 13
-        state_normalize_mask[14] = False  # Do not normalize index 14
-        state_normalize_mask[15] = False  # Do not normalize index 15
+        state_normalize_mask = torch.ones(state_full.shape[-1], dtype=torch.bool)
+        if state_full.shape[-1] == 16:
+            state_normalize_mask[[6, 13, 14, 15]] = False
         
         # Initialize normalized state with original values
         state_normalized = state_full.clone()
@@ -410,7 +408,7 @@ class LeRobot_Dataset(Dataset):
             state_range = torch.where(state_range < 1e-8, torch.ones_like(state_range), state_range)
             # Normalize to [0, 1] first, then scale to [-1, 1]
             normalized_01 = (state_full[state_normalize_mask] - state_min[state_normalize_mask]) / state_range[state_normalize_mask]
-            state_normalized[state_normalize_mask] = 2.0 * normalized_01 - 1.0
+            state_normalized[state_normalize_mask] = torch.where((state_max-state_min)[state_normalize_mask] > 1e-8, 2.0 * normalized_01 - 1.0, 0.0)
             
             # Clip normalized dimensions to [-1, 1] range
             state_normalized[state_normalize_mask] = torch.clamp(state_normalized[state_normalize_mask], -1.0, 1.0)
@@ -430,11 +428,9 @@ class LeRobot_Dataset(Dataset):
         action_full = action_full.float()
         
         # Create mask for dimensions to normalize (same as state)
-        action_normalize_mask = torch.ones(16, dtype=torch.bool)
-        action_normalize_mask[6] = False   # Do not normalize index 6
-        action_normalize_mask[13] = False  # Do not normalize index 13
-        action_normalize_mask[14] = False  # Do not normalize index 14
-        action_normalize_mask[15] = False  # Do not normalize index 15
+        action_normalize_mask = torch.ones(action_full.shape[-1], dtype=torch.bool)
+        if action_full.shape[-1] == 16:
+            action_normalize_mask[[6, 13, 14, 15]] = False
         
         # Initialize normalized action with original values
         action_normalized = action_full.clone()
@@ -446,7 +442,7 @@ class LeRobot_Dataset(Dataset):
             # Apply normalization to masked dimensions across all timesteps
             # Normalize to [0, 1] first, then scale to [-1, 1]
             normalized_01 = (action_full[:, action_normalize_mask] - action_min[action_normalize_mask]) / action_range[action_normalize_mask]
-            action_normalized[:, action_normalize_mask] = 2.0 * normalized_01 - 1.0
+            action_normalized[:, action_normalize_mask] = torch.where((action_max-action_min)[action_normalize_mask] > 1e-8, 2.0 * normalized_01 - 1.0, 0.0)
             
             # Clip normalized dimensions to [-1, 1] range
             action_normalized[:, action_normalize_mask] = torch.clamp(action_normalized[:, action_normalize_mask], -1.0, 1.0)

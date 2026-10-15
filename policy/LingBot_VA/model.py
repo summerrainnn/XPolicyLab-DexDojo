@@ -128,9 +128,11 @@ class Model(ModelTemplate):
         self.job_config = VA_CONFIGS[config_name]
         self.obs_cam_keys = list(self.job_config.obs_cam_keys)
         self.action_dim = int(self.job_config.action_dim)
+        if self.job_config.norm_stat is None:
+            raise ValueError("Set LINGBOT_VA_ACTION_CONFIG to the training dataset meta/action_norm.json")
         self.action_per_frame = int(self.job_config.action_per_frame)
 
-        env_cfg = self.model_cfg.get("env_cfg")
+        env_cfg = self.model_cfg.get("env_cfg_type") or self.model_cfg.get("env_cfg")
         if env_cfg is None:
             self.robot_action_dim_info = None
         else:
@@ -242,6 +244,10 @@ class Model(ModelTemplate):
         if action_chunk.shape[1] == len(JOINT_CONTROL_INDICES):
             return action_chunk
 
+        if self.robot_action_dim_info and self.robot_action_dim_info["ee_dim"] == [20, 20]:
+            if action_chunk.shape[1] != 54:
+                raise ValueError("Marvin requires a matching 54D LingBot checkpoint")
+            return action_chunk
         if action_chunk.shape[1] != 30:
             raise ValueError(
                 "LingBot_VA joint-control conversion expects raw action dim 30 or already-converted dim 14, "

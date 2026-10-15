@@ -165,7 +165,7 @@ class XWAMPolicy:
     # ------------------------------------------------------------------
     def _normalize_proprios(self, proprios: np.ndarray) -> np.ndarray:
         """Quantile-normalize a [B, 16] raw proprio batch into [-1, 1]."""
-        proprio_norm = 2.0 * (proprios - self.state_q01) / (self.state_q99 - self.state_q01) - 1.0
+        proprio_norm = 2.0 * (proprios - self.state_q01) / np.maximum(self.state_q99 - self.state_q01, 1e-6) - 1.0
         if not self.has_right_arm:
             proprio_norm[:, 8:] = 0.0
         return proprio_norm.astype(np.float32)
@@ -232,7 +232,7 @@ class XWAMPolicy:
         proprios_out = xt_proprios.float().cpu().numpy()  # [B, Tp, 16]
 
         # Denormalize proprios over the full 16-dim layout.
-        proprios_out = (proprios_out + 1.0) / 2.0 * (self.state_q99 - self.state_q01) + self.state_q01
+        proprios_out = (proprios_out + 1.0) / 2.0 * np.maximum(self.state_q99 - self.state_q01, 1e-6) + self.state_q01
 
         # Denormalize actions; only the first action_dim columns are meaningful.
         actions = actions[:, :, : self.action_dim]

@@ -189,7 +189,14 @@ def main(args):
     logger.info(f"Args: {args}")
 
     # Load model & processor
-    model = XVLA.from_pretrained(args.models)
+    import os
+    load_kwargs = {}
+    if os.environ.get("XVLA_ROBOT") == "marvin_wuji":
+        from models.configuration_xvla import XVLAConfig
+        config = XVLAConfig.from_pretrained(args.models)
+        config.action_mode = "ee6d_marvin"
+        load_kwargs = dict(config=config, ignore_mismatched_sizes=True)
+    model = XVLA.from_pretrained(args.models, **load_kwargs)
     processor = XVLAProcessor.from_pretrained(args.models)
 
     # Iterable dataloader (don't wrap with prepare)

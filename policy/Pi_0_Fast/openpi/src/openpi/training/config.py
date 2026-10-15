@@ -264,7 +264,7 @@ class LeRobotAlohaDataConfig(DataConfigFactory):
     def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
         data_transforms = _transforms.Group(
             inputs=[aloha_policy.AlohaInputs(adapt_to_pi=self.adapt_to_pi)],
-            outputs=[aloha_policy.AlohaOutputs(adapt_to_pi=self.adapt_to_pi)],
+            outputs=[aloha_policy.AlohaOutputs(adapt_to_pi=self.adapt_to_pi, action_dim=54 if model_config.action_dim == 54 else 14)],
         )
         if self.use_delta_joint_actions:
             delta_action_mask = _transforms.make_bool_mask(6, -1, 6, -1)
@@ -675,6 +675,15 @@ _CONFIGS = [
         num_train_steps=60000,
     ),
 ]
+
+# FAST predicts tokens; changing the decoded action width does not resize its backbone.
+_base_marvin = _CONFIGS[0]
+_CONFIGS.append(dataclasses.replace(
+    _base_marvin, name="pi0_fast_marvin",
+    model=dataclasses.replace(_base_marvin.model, action_dim=54, max_token_len=1024),
+    data=dataclasses.replace(_base_marvin.data, adapt_to_pi=False, use_delta_joint_actions=False,
+                            assets=AssetsConfig(asset_id="marvin_wuji")),
+))
 
 if len({config.name for config in _CONFIGS}) != len(_CONFIGS):
     raise ValueError("Config names must be unique.")

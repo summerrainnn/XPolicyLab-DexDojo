@@ -41,6 +41,12 @@ export RUN_ID="${ckpt_setting}"
 export SEED="${seed}"
 export NUM_GPUS
 
+if [[ "${env_cfg_type}" == "marvin_wuji" ]]; then
+  python "${POLICY_DIR}/../prepare_marvin.py" "${DATA_ROOT}/${DATASET_REPO}"
+  export ROBOT_TYPE=marvin_wuji
+  export CONFIG_YAML="${POLICY_DIR}/examples/RoboDojo/train_files/ABot_Marvin.yaml"
+fi
+
 export MODEL_ROOT="${ABOT_MODEL_ROOT:-${POLICY_DIR}/model_weights}"
 export BASE_VLM="${ABOT_BASE_VLM:-${MODEL_ROOT}/Qwen3-VL-4B-Instruct-Action}"
 export PRETRAIN_CKPT="${ABOT_PRETRAIN_CKPT:-${MODEL_ROOT}/ABot-M0-Pretrain/checkpoints/ABot_M0_Pretrain.pt}"

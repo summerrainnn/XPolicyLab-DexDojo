@@ -181,11 +181,18 @@ echo "steps:              ${MOLMOACT2_STEPS}"
 cd "${LEROBOT_DIR}"
 export PATH="${VENV_BIN}:${PATH}"
 
+robot_dim=32
+if [[ "${env_cfg_type}" == "marvin_wuji" ]]; then
+  "${VENV_PYTHON}" "${POLICY_DIR}/patch_native.py" "${LEROBOT_DIR}"
+  robot_dim=54
+  SETUP_TYPE="${MOLMOACT2_SETUP_TYPE:-Marvin dual seven-joint arms with two twenty-joint Wuji hands}"
+fi
 COMMON_ARGS=(
   --dataset.repo_id="${MOLMOACT2_DATASET_REPO_ID}"
   --dataset.root="${MOLMOACT2_DATASET_ROOT}"
   --dataset.video_backend="${VIDEO_BACKEND}"
   --dataset.image_transforms.enable=true
+  --policy.expected_max_action_dim="${robot_dim}"
   --policy.type=molmoact2
   --policy.checkpoint_path="${MOLMOACT2_CHECKPOINT_PATH}"
   --policy.device=cuda

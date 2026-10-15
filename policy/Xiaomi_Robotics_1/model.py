@@ -303,28 +303,21 @@ class Model(ModelTemplate):
             _center_crop_pil(Image.fromarray(right_img), self.crop_ratio),
         ]
 
-        # Extract state. Input state is always joint, packed into the sparse
-        # per-arm 8-slot layout: [0:6] left_arm_joint, [7:8] left_gripper,
-        # [8:14] right_arm_joint, [15:16] right_gripper; rest zero.
         state = obs.get("state", {})
-        left_arm_joint = np.asarray(
-            state["left_arm_joint_state"], dtype=np.float32
-        ).reshape(-1)[:6]
-        left_gripper = float(
-            np.asarray(state["left_ee_joint_state"]).reshape(-1)[0]
-        )
-        right_arm_joint = np.asarray(
-            state["right_arm_joint_state"], dtype=np.float32
-        ).reshape(-1)[:6]
-        right_gripper = float(
-            np.asarray(state["right_ee_joint_state"]).reshape(-1)[0]
-        )
-
+        left_arm_joint = np.asarray(state["left_arm_joint_state"], dtype=np.float32).reshape(-1)
+        right_arm_joint = np.asarray(state["right_arm_joint_state"], dtype=np.float32).reshape(-1)
+        hands = [np.asarray(state[f"{side}_ee_joint_state"], dtype=np.float32).reshape(-1)
+                 for side in ("left", "right")]
+        arm_slots = [max(7, len(left_arm_joint)), max(7, len(right_arm_joint))]
+        widths = [slot + len(hand) for slot, hand in zip(arm_slots, hands)]
+        if sum(widths) > self.input_length:
+            raise ValueError(f"input_length={self.input_length} cannot hold robot width {sum(widths)}")
         state_padded = np.zeros(self.input_length, dtype=np.float32)
-        state_padded[0:6] = left_arm_joint
-        state_padded[7] = left_gripper
-        state_padded[8:14] = right_arm_joint
-        state_padded[15] = right_gripper
+        offset = 0
+        for arm, hand, slot, width in zip((left_arm_joint, right_arm_joint), hands, arm_slots, widths):
+            state_padded[offset:offset+len(arm)] = arm
+            state_padded[offset+slot:offset+width] = hand
+            offset += width
         state_tensor = torch.from_numpy(state_padded).bfloat16()  # [60]
 
         # The model predicts RELATIVE (delta) actions w.r.t. the current state
@@ -332,6 +325,7 @@ class Model(ModelTemplate):
         # Stash the current absolute state so _actions_to_xpl_format can restore
         # absolute actions. joint: current joints; ee: current ee pose in MiBot frame.
         current_state: dict[str, Any] = {
+            "arm_slots": arm_slots, "hand_dims": [len(h) for h in hands],
             "left_arm_joint": left_arm_joint.copy(),
             "right_arm_joint": right_arm_joint.copy(),
         }
@@ -549,37 +543,26 @@ class Model(ModelTemplate):
                 delta slots: [0:3]/[8:11] xyz, [3:6]/[11:14] axis-angle.
                 Grippers ([7:8], [15:16]) are absolute (GetAbsAction).
         """
+        arm_slots = current_state.get("arm_slots", [7, 7])
+        hand_dims = current_state.get("hand_dims", [1, 1])
+        widths = [a + h for a, h in zip(arm_slots, hand_dims)]
+        raw_actions = np.asarray(raw_actions)
+        if raw_actions.shape[-1] < sum(widths) or not np.isfinite(raw_actions).all():
+            raise ValueError("Xiaomi checkpoint action tensor cannot represent this robot")
         action_list = []
-        for t in range(raw_actions.shape[0]):
-            a = raw_actions[t]
-
-            if self.action_type == "joint":
-                left_arm = current_state["left_arm_joint"] + a[0:6]
-                right_arm = current_state["right_arm_joint"] + a[8:14]
-                action_list.append({
-                    "left_arm_joint_state": left_arm.astype(np.float32),
-                    "left_ee_joint_state": a[7:8].astype(np.float32),
-                    "right_arm_joint_state": right_arm.astype(np.float32),
-                    "right_ee_joint_state": a[15:16].astype(np.float32),
-                })
-            else:
-                left_xyz, left_quat = self._restore_abs_ee(
-                    a[0:3], a[3:6],
-                    current_state["left_ee_pos_mibot"],
-                    current_state["left_ee_rotm_mibot"],
-                )
-                right_xyz, right_quat = self._restore_abs_ee(
-                    a[8:11], a[11:14],
-                    current_state["right_ee_pos_mibot"],
-                    current_state["right_ee_rotm_mibot"],
-                )
-                action_list.append({
-                    "left_ee_pose": np.concatenate([left_xyz, left_quat]).astype(np.float32),
-                    "right_ee_pose": np.concatenate([right_xyz, right_quat]).astype(np.float32),
-                    "left_ee_joint_state": a[7:8].astype(np.float32),
-                    "right_ee_joint_state": a[15:16].astype(np.float32),
-                })
-
+        for a in raw_actions:
+            result, offset = {}, 0
+            for side, slot, hand_dim, width in zip(("left", "right"), arm_slots, hand_dims, widths):
+                if self.action_type == "joint":
+                    anchor = current_state[f"{side}_arm_joint"]
+                    result[f"{side}_arm_joint_state"] = (anchor + a[offset:offset+len(anchor)]).astype(np.float32)
+                else:
+                    xyz, quat = self._restore_abs_ee(a[offset:offset+3], a[offset+3:offset+6],
+                        current_state[f"{side}_ee_pos_mibot"], current_state[f"{side}_ee_rotm_mibot"])
+                    result[f"{side}_ee_pose"] = np.concatenate([xyz, quat]).astype(np.float32)
+                result[f"{side}_ee_joint_state"] = a[offset+slot:offset+width].astype(np.float32)
+                offset += width
+            action_list.append(result)
         return action_list
 
     @staticmethod

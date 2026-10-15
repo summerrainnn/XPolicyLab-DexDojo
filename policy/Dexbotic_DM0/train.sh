@@ -73,6 +73,7 @@ export DM0_DATASET_NAME="${bench_name_registered}"
 export DM0_OUTPUT_DIR="${ckpt_dir}"
 export DM0_MODEL_PATH="${base_model}"
 export DM0_SEED="${seed}"
+if [[ "${env_cfg_type}" == "marvin_wuji" ]]; then export DM0_ACTION_DIM=66; fi
 
 mkdir -p "${ckpt_dir}"
 

@@ -21,3 +21,5 @@ robot_action_dim_info:
   - 20
   - 20
 allow_default_robot_dims: false
+
+stats_layout: train

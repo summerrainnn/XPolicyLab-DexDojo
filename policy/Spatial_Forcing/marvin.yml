@@ -12,8 +12,8 @@ result_dir: ./results/pi05_sf/
 obs_transform_pipeline: xspark-v1.0
 action_type: joint
 policy_uv_env_path: open_sf
-train_config_name: pi05sf_jax_robodojo_v21_offcache
-repo_id: RoboDojo_lerobot_v21_video
+train_config_name: pi05sf_marvin
+repo_id: marvin_wuji
 host: 127.0.0.1
 port: 5000
 robot_action_dim_info:

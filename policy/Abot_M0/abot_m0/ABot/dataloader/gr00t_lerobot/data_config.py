@@ -209,6 +209,16 @@ class AgilexDataConfig:
 
         return ComposedModalityTransform(transforms=transforms)
 
+class MarvinDataConfig(AgilexDataConfig):
+    """Keep Agilex field ordering but normalize every hand joint continuously."""
+    def transform(self):
+        return ComposedModalityTransform(transforms=[
+            StateActionToTensor(apply_to=self.state_keys + self.action_keys),
+            StateActionTransform(apply_to=self.state_keys + self.action_keys,
+                normalization_modes=dict.fromkeys(self.state_keys + self.action_keys, "min_max")),
+        ])
+
+
 class FourierGr1ArmsWaistDataConfig:
     video_keys = ["video.ego_view"]
     state_keys = [
@@ -1336,6 +1346,7 @@ ROBOT_TYPE_CONFIG_MAP = {
 
     # RoboTwin
     "robotwin": AgilexDataConfig(),
+    "marvin_wuji": MarvinDataConfig(),
 
     # RoboCase
     "fourier_gr1_arms_waist": FourierGr1ArmsWaistDataConfig(),

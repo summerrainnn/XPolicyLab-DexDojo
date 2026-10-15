@@ -63,7 +63,7 @@ class JsonDataset(Dataset):
         return {
             "messages": self._messages(prompt["conversations"], self._augment(self._images(traj, prompt["images"], frame))),
             "action": torch.from_numpy(normalize_action(action, self.mean, self.std)),
-            "action_mask": torch.from_numpy(build_action_mask(self.action_length, self._mask(traj, steps))),
+            "action_mask": torch.from_numpy(build_action_mask(self.action_length, self._mask(traj, steps), width=action.shape[-1])),
             "state": torch.from_numpy(self._state(traj, frame)),
         }
 

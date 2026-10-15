@@ -12,7 +12,7 @@ obs_transform_pipeline: null
 action_type: joint
 prompt: null
 model_path: null
-data_config_name: robodojo_qpos
+data_config_name: marvin_qpos
 bench_name: RoboDojo
 embodiment_tag: new_embodiment
 prompt_template: long

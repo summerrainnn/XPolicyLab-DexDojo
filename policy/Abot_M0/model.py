@@ -22,6 +22,7 @@ from ABot.model.framework.base_framework import baseframework
 from deployment.model_server.tools.image_tools import to_pil_preserve
 
 from XPolicyLab.model_template import ModelTemplate
+from XPolicyLab.utils.robot_layout import joint_layout_for_width
 from XPolicyLab.utils.checkpoint_resolver import candidate_checkpoint_roots
 from XPolicyLab.utils.process_data import (
     decode_image_bit,
@@ -116,12 +117,12 @@ def resize_image(image: np.ndarray, size: tuple[int, int]) -> np.ndarray:
 # Deploy / LeRobot modality.json / pack_robot_state: L_j(6), L_g(1), R_j(6), R_g(1)
 def modality_layout_to_train_layout(x: np.ndarray) -> np.ndarray:
     x = np.asarray(x)
-    return np.concatenate([x[..., 0:6], x[..., 7:13], x[..., 6:7], x[..., 13:14]], axis=-1)
+    return joint_layout_for_width(x.shape[-1]).grouped(x)
 
 
 def train_layout_to_modality_layout(x: np.ndarray) -> np.ndarray:
     x = np.asarray(x)
-    return np.concatenate([x[..., 0:6], x[..., 12:13], x[..., 6:12], x[..., 13:14]], axis=-1)
+    return joint_layout_for_width(x.shape[-1]).interleaved(x)
 
 
 def _looks_like_modality_order_stats(values: np.ndarray) -> bool:
@@ -143,7 +144,7 @@ def _permute_action_norm_stats(stats: dict[str, Any]) -> dict[str, Any]:
 
 def _default_action_mask(action_dim: int = 14) -> np.ndarray:
     mask = np.ones(action_dim, dtype=bool)
-    for grip_idx in _GRIPPER_INDICES:
+    for grip_idx in (_GRIPPER_INDICES if action_dim == 14 else ()):
         if grip_idx < action_dim:
             mask[grip_idx] = False
     return mask
@@ -173,7 +174,7 @@ def _unnormalize_actions_train_layout(
     )
 
     normalized_actions = np.clip(normalized_actions, -1, 1).astype(np.float32, copy=True)
-    for grip_idx in _GRIPPER_INDICES:
+    for grip_idx in (_GRIPPER_INDICES if normalized_actions.shape[-1] == 14 else ()):
         if grip_idx < normalized_actions.shape[-1]:
             normalized_actions[:, grip_idx] = np.where(
                 normalized_actions[:, grip_idx] < _BINARY_GRIPPER_THRESHOLD, 0.0, 1.0
@@ -296,7 +297,7 @@ class Model(ModelTemplate):
         stats_key = baseframework._check_unnorm_key(self.model.norm_stats, self.unnorm_key)
         self.action_norm_stats = dict(self.model.norm_stats[stats_key]["action"])
         probe = self.action_norm_stats.get("min", self.action_norm_stats.get("q01"))
-        if probe is not None and _looks_like_modality_order_stats(probe):
+        if self.model_cfg.get("stats_layout") == "modality" or (self.model_cfg.get("stats_layout", "auto") == "auto" and probe is not None and _looks_like_modality_order_stats(probe)):
             self.action_norm_stats = _permute_action_norm_stats(self.action_norm_stats)
             print("[Abot_M0] Permuted action norm stats from modality layout to training layout.")
         self.action_chunk_size = int(

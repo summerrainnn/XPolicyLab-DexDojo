@@ -131,6 +131,13 @@ class RobotDataset(Dataset):
             hue=hue,
         )
         self.shuffle_view_order = shuffle_view_order
+        q01 = statistics.get("q01", {}) if statistics else {}
+        self.hand_dim = len(q01.get("gripper_pos", [0.0]))
+        self._PROPRIO_COMPONENTS = tuple((k, self.hand_dim if "gripper" in k else n) for k, n in self._PROPRIO_COMPONENTS)
+        self._ACTION_COMPONENTS = tuple((k, self.hand_dim if "gripper" in k else n) for k, n in self._ACTION_COMPONENTS)
+        self._PROPRIO_DIM = sum(n for _, n in self._PROPRIO_COMPONENTS)
+        self._ACTION_DIM = sum(n for _, n in self._ACTION_COMPONENTS)
+        self._RAW_ACTION_DIM_PER_ARM = 6 + self.hand_dim
         self.proprio_dim = self._PROPRIO_DIM
         self.action_dim = self._ACTION_DIM
         self.proprio_component_slices = self._build_component_slices(self._PROPRIO_COMPONENTS)
@@ -575,15 +582,15 @@ class RobotDataset(Dataset):
                     raise ValueError(
                         f"Missing quantile key gripper_pos for {arm}_gripper_pos in episode {episode_key}."
                     )
-                grip = np.asarray(raw_grip, dtype=np.float32).reshape(-1, 1)
+                grip = np.asarray(raw_grip, dtype=np.float32).reshape(-1, self.hand_dim)
                 grip = self._quantile_normalize_np(grip[frame_ids], "gripper_pos")
                 if self.inverse_gripper:
                     grip = -grip
                 chunks.append(grip)
-                mask_chunks.append(np.ones((length, 1), dtype=np.float32))
+                mask_chunks.append(np.ones((length, self.hand_dim), dtype=np.float32))
             else:
-                chunks.append(np.zeros((length, 1), dtype=np.float32))
-                mask_chunks.append(np.zeros((length, 1), dtype=np.float32))
+                chunks.append(np.zeros((length, self.hand_dim), dtype=np.float32))
+                mask_chunks.append(np.zeros((length, self.hand_dim), dtype=np.float32))
 
         values = np.concatenate(chunks, axis=1)
         mask = np.concatenate(mask_chunks, axis=1)
@@ -625,16 +632,16 @@ class RobotDataset(Dataset):
                 chunks.append(self._quantile_normalize_np(aa, qk_aa))
                 mask_chunks.append(np.ones((length, 3), dtype=np.float32))
 
-                grip = -arm_data[:, 6:7]  # note: -1 means open for robocasa gripper
+                grip = -arm_data[:, 6:]  # note: -1 means open for robocasa gripper
                 chunks.append(grip)
-                mask_chunks.append(np.ones((length, 1), dtype=np.float32))
+                mask_chunks.append(np.ones((length, self.hand_dim), dtype=np.float32))
             else:
                 chunks.append(np.zeros((length, 3), dtype=np.float32))
                 mask_chunks.append(np.zeros((length, 3), dtype=np.float32))
                 chunks.append(np.zeros((length, 3), dtype=np.float32))
                 mask_chunks.append(np.zeros((length, 3), dtype=np.float32))
-                chunks.append(np.zeros((length, 1), dtype=np.float32))
-                mask_chunks.append(np.zeros((length, 1), dtype=np.float32))
+                chunks.append(np.zeros((length, self.hand_dim), dtype=np.float32))
+                mask_chunks.append(np.zeros((length, self.hand_dim), dtype=np.float32))
 
         values = np.concatenate(chunks, axis=1)
         mask = np.concatenate(mask_chunks, axis=1)
@@ -709,7 +716,7 @@ class RobotDataset(Dataset):
                     raise ValueError(
                         f"Missing quantile key gripper_action for delta {arm}_gripper_pos in episode {episode_key}."
                     )
-                p_grip = np.asarray(raw_p_grip, dtype=np.float32).reshape(-1, 1)
+                p_grip = np.asarray(raw_p_grip, dtype=np.float32).reshape(-1, self.hand_dim)
                 future_ids = proprio_ids + self.action_skip
                 if int(future_ids.max()) >= p_grip.shape[0]:
                     raise ValueError(
@@ -722,10 +729,10 @@ class RobotDataset(Dataset):
                 if self.inverse_gripper:
                     grip_action = -grip_action
                 chunks.append(grip_action)
-                mask_chunks.append(np.ones((length, 1), dtype=np.float32))
+                mask_chunks.append(np.ones((length, self.hand_dim), dtype=np.float32))
             else:
-                chunks.append(np.zeros((length, 1), dtype=np.float32))
-                mask_chunks.append(np.zeros((length, 1), dtype=np.float32))
+                chunks.append(np.zeros((length, self.hand_dim), dtype=np.float32))
+                mask_chunks.append(np.zeros((length, self.hand_dim), dtype=np.float32))
 
         values = np.concatenate(chunks, axis=1)
         mask = np.concatenate(mask_chunks, axis=1)

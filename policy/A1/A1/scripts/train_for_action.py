@@ -63,6 +63,23 @@ log = logging.getLogger(__name__)
 # # Add the handler to the logger
 # log.addHandler(ch)
 
+def adapt_robot_projections(model, weights):
+    """Only robot input/output shape changes are permitted during initialization."""
+    own = model.state_dict()
+    result = dict(weights)
+    for key, value in weights.items():
+        if key in own and value.shape != own[key].shape:
+            if not key.startswith(("action_head.", "proprio_projector.")):
+                raise ValueError(f"Unexpected pretrained shape mismatch: {key}")
+            parent, _, leaf = key.rpartition(".")
+            module = model.get_submodule(parent)
+            if hasattr(module, "reset_parameters"):
+                module.reset_parameters()
+            result[key] = model.state_dict()[key].clone()
+            log.info(f"Initialized robot projection {key} for new action layout")
+    return result
+
+
 def main(cfg: TrainConfig) -> None:
     
     if cfg.run_name is None:
@@ -203,7 +220,7 @@ def main(cfg: TrainConfig) -> None:
             # missing_cnt = len([k for k in model_keys if k not in to_load])
             # unexpected_cnt = len([k for k in to_load.keys() if k not in model_keys])
             # log.info(f"Pre-FSDP filtered load: keep={len(filtered)} missing={missing_cnt} unexpected={unexpected_cnt}")
-            olmo_model.load_state_dict(to_load, strict=True)
+            olmo_model.load_state_dict(adapt_robot_projections(olmo_model, to_load), strict=True)
         # Synchronize all ranks before continuing
         barrier()
 
@@ -278,7 +295,7 @@ def main(cfg: TrainConfig) -> None:
                 olmo_model.to_empty(device="cpu")
             if cfg.initial_model_checkpoint:
                 state_dict = torch.load(join(cfg.initial_model_checkpoint, "model.pt"), map_location="cpu")
-                missing, unexpected = olmo_model.load_state_dict(state_dict, strict=False)
+                missing, unexpected = olmo_model.load_state_dict(adapt_robot_projections(olmo_model, state_dict), strict=False)
                 log.info(f"missing keys: {missing}")
                 log.info(f"unexpected keys: {unexpected}")
                 del state_dict

@@ -174,7 +174,7 @@ def main():
     )
 
     logger.print("Creating model...")
-    model = SpiritVLAPolicy.from_pretrained(ckpt_path= args.pretrained_path, strict=False, train=True).to(device)
+    model = SpiritVLAPolicy.from_pretrained(ckpt_path= args.pretrained_path, strict=False, train=True, robot_dim=54 if dataset.state_encoding == "joint_absolute" else None).to(device)
     set_norm_stats(model, norm_stats, device)
 
     model.qwen.gradient_checkpointing_enable(

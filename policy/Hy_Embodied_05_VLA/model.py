@@ -41,7 +41,7 @@ import numpy as np
 import torch
 
 from XPolicyLab.model_template import ModelTemplate
-from XPolicyLab.utils.process_data import get_robot_action_dim_info
+from XPolicyLab.utils.process_data import get_robot_action_dim_info, pack_robot_state, unpack_robot_state
 
 # Hy-Embodied source tree resolution order:
 #   1. model_cfg["hy_root"] (deploy.yml)
@@ -130,7 +130,8 @@ def _convert_pose_robo_dojo(
 
     e = eepose16_wxyz.copy()
     e[3:7] = eepose16_wxyz[[4, 5, 6, 3]]    # wxyz -> xyzw
-    e[11:15] = eepose16_wxyz[[12, 13, 14, 11]]
+    offset = e.shape[-1] // 2
+    e[offset+3:offset+7] = eepose16_wxyz[offset + np.array([4, 5, 6, 3])]
     if umi_coord_frame:
         e = convert_frame_robo_to_umi(
             e[None, :], convert_gripper=umi_gripper_space,
@@ -187,6 +188,12 @@ class Model(ModelTemplate):
                 f"resolves to {n_arms} arm(s). Use a dual-arm embodiment (e.g. arx_x5)."
             )
 
+        hands = getattr(self, "robot_action_dim_info", {}).get("ee_dim", [1, 1])
+        if len(hands) != 2 or hands[0] != hands[1]:
+            raise ValueError("Hy-VLA requires two equal hand widths")
+        self.ee_info = {"arm_dim": [7, 7], "ee_dim": hands}
+        self.raw_dim = 14 + sum(hands)
+        self.net_dim = self.raw_dim + 4
         hy_root = _resolve_hy_root(model_cfg)
         if not os.path.isdir(hy_root):
             raise FileNotFoundError(
@@ -277,7 +284,9 @@ class Model(ModelTemplate):
 
         print(f"[hy_vla] loading config + model from {ckpt_path} ...", flush=True)
         self.config = HyVLAConfig.from_pretrained(ckpt_path)
-        self.policy = HyVLA.from_pretrained(ckpt_path, config=self.config)
+        if self.config.max_state_dim < self.net_dim or self.config.action_feature.shape[0] != self.net_dim:
+            raise ValueError(f"Hy-VLA checkpoint must be trained for {self.net_dim}D pose/hand features")
+        self.policy = HyVLA.from_pretrained(ckpt_path, config=self.config, strict=True)
         self.policy.enable_video_encoder_if_needed()
         self.policy.cuda().eval()
         self.policy = self.policy.to(self.weight_dtype)
@@ -336,15 +345,7 @@ class Model(ModelTemplate):
         left = _to_hwc_uint8_rgb(_extract_image(obs, CAM_LEFT))
         right = _to_hwc_uint8_rgb(_extract_image(obs, CAM_RIGHT))
 
-        state = obs.get("state", {})
-        lpose = np.asarray(state["left_ee_pose"], dtype=np.float32)    # (7,) xyz+wxyz
-        rpose = np.asarray(state["right_ee_pose"], dtype=np.float32)
-        lgrip = float(np.asarray(state["left_ee_joint_state"]).reshape(-1)[0])
-        rgrip = float(np.asarray(state["right_ee_joint_state"]).reshape(-1)[0])
-        state16 = np.concatenate([
-            lpose[:3], lpose[3:7], [lgrip],
-            rpose[:3], rpose[3:7], [rgrip],
-        ]).astype(np.float32)                                          # (16,) wxyz
+        state16 = pack_robot_state(obs, "ee", self.ee_info).astype(np.float32)
 
         instruction = obs.get("instruction") or obs.get("prompt") or self.default_prompt
 
@@ -352,7 +353,7 @@ class Model(ModelTemplate):
             "observation.images.top_head": _to_chw_float(head),
             "observation.images.hand_left": _to_chw_float(left),
             "observation.images.hand_right": _to_chw_float(right),
-            "observation.state": _pad_state(state16[None, :], max_state_dim=32),
+            "observation.state": state16[None, :],
             "task": [instruction],
             # Raw uint8 HWC frames for the MEM video-encoder history buffer.
             "raw_images.top_head": head,
@@ -412,16 +413,7 @@ class Model(ModelTemplate):
                 for env_idx in env_idx_list]
 
     def _chunk_to_action_dicts(self, chunk16_wxyz: np.ndarray) -> list[dict]:
-        steps = []
-        for i in range(chunk16_wxyz.shape[0]):
-            row = chunk16_wxyz[i]
-            steps.append({
-                "left_ee_pose": np.concatenate([row[L_POS], row[L_QUAT]]).astype(np.float32),
-                "right_ee_pose": np.concatenate([row[R_POS], row[R_QUAT]]).astype(np.float32),
-                "left_ee_joint_state": np.array([row[L_GRIP]], dtype=np.float32),
-                "right_ee_joint_state": np.array([row[R_GRIP]], dtype=np.float32),
-            })
-        return steps
+        return unpack_robot_state(chunk16_wxyz, "ee", self.ee_info)
 
     @torch.no_grad()
     def _infer_chunk_wxyz(self, env_idx: int) -> np.ndarray:
@@ -431,10 +423,11 @@ class Model(ModelTemplate):
 
         # Initial EE pose: wxyz -> xyzw -> optional UMI frame, matching the
         # coordinate frame used by the training norm stats.
-        initial_wxyz = batch["observation.state"][0, :16].copy()
+        initial_wxyz = batch["observation.state"][0, :self.raw_dim].copy()
         initial_xyzw_rd = initial_wxyz.copy()
         initial_xyzw_rd[3:7] = initial_wxyz[[4, 5, 6, 3]]
-        initial_xyzw_rd[11:15] = initial_wxyz[[12, 13, 14, 11]]
+        offset = self.raw_dim // 2
+        initial_xyzw_rd[offset+3:offset+7] = initial_wxyz[offset + np.array([4, 5, 6, 3])]
         if self.umi_coord_frame:
             initial_xyzw_model = self._convert_frame_robo_to_umi(
                 initial_xyzw_rd[None, :],
@@ -488,7 +481,7 @@ class Model(ModelTemplate):
         # xyzw -> wxyz for the env.
         actions_wxyz = actions_rd_xyzw.copy()
         actions_wxyz[:, 3:7] = actions_rd_xyzw[:, [6, 3, 4, 5]]
-        actions_wxyz[:, 11:15] = actions_rd_xyzw[:, [14, 11, 12, 13]]
+        actions_wxyz[:, offset+3:offset+7] = actions_rd_xyzw[:, offset + np.array([6, 3, 4, 5])]
 
         # Subsample: execute every exc_action_interval-th action,
         # for a total of exc_action_size executed steps.
@@ -508,30 +501,30 @@ class Model(ModelTemplate):
         # rel_only branch is the common case for the released ckpt.
         if self.blend_mode == "rel_only":
             half = actions.shape[0] // 2 if actions.shape[0] % 2 == 0 else actions.shape[0]
-            rel = actions[:half, :20] * self.norm_data["act_std"] + self.norm_data["act_mean"]
+            rel = actions[:half, :self.net_dim] * self.norm_data["act_std"] + self.norm_data["act_mean"]
             return self._relative_to_dual_arm_poses(rel, initial_xyzw)
 
         assert actions.shape[0] % 2 == 0, "rel_abs/abs need even token count"
         half = actions.shape[0] // 2
         if self.blend_mode == "abs_only":
-            abs_ = actions[half:, :20] * self.norm_data["act_std_abs"] + self.norm_data["act_mean_abs"]
-            out = np.zeros((abs_.shape[0], 16), dtype=abs_.dtype)
+            abs_ = actions[half:, :self.net_dim] * self.norm_data["act_std_abs"] + self.norm_data["act_mean_abs"]
+            out = np.zeros((abs_.shape[0], self.raw_dim), dtype=abs_.dtype)
             for i in range(abs_.shape[0]):
                 out[i] = np.concatenate([
-                    self._pos_rotation_matrix_to_pos_quat(abs_[i, :10]),
-                    self._pos_rotation_matrix_to_pos_quat(abs_[i, 10:20]),
+                    self._pos_rotation_matrix_to_pos_quat(abs_[i, :self.net_dim//2]),
+                    self._pos_rotation_matrix_to_pos_quat(abs_[i, self.net_dim//2:self.net_dim]),
                 ])
             return out
         # rel_abs: defer to the bundled wrapper's blend (slerp) for fidelity.
         from robotwin_eval.policy_wrapper import _blend_dual_arm_pose_quat
-        rel = actions[:half, :20] * self.norm_data["act_std"] + self.norm_data["act_mean"]
+        rel = actions[:half, :self.net_dim] * self.norm_data["act_std"] + self.norm_data["act_mean"]
         p1 = self._relative_to_dual_arm_poses(rel, initial_xyzw)
-        abs_ = actions[half:, :20] * self.norm_data["act_std_abs"] + self.norm_data["act_mean_abs"]
-        p2 = np.zeros((abs_.shape[0], 16), dtype=abs_.dtype)
+        abs_ = actions[half:, :self.net_dim] * self.norm_data["act_std_abs"] + self.norm_data["act_mean_abs"]
+        p2 = np.zeros((abs_.shape[0], self.raw_dim), dtype=abs_.dtype)
         for i in range(abs_.shape[0]):
             p2[i] = np.concatenate([
-                self._pos_rotation_matrix_to_pos_quat(abs_[i, :10]),
-                self._pos_rotation_matrix_to_pos_quat(abs_[i, 10:20]),
+                self._pos_rotation_matrix_to_pos_quat(abs_[i, :self.net_dim//2]),
+                self._pos_rotation_matrix_to_pos_quat(abs_[i, self.net_dim//2:self.net_dim]),
             ])
         return _blend_dual_arm_pose_quat(p1, p2)
 

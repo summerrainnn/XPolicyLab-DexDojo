@@ -41,6 +41,8 @@ else
     extra_args=("${@:8}")
 fi
 
+if [[ "${env_cfg_type}" == "marvin_wuji" ]]; then export RISE_ROBOT_DIM=54; fi
+
 if [[ ! "${stage}" =~ ${stages_regex} ]]; then
     echo "${usage}" >&2
     echo "[RISE] Unknown stage: ${stage}" >&2

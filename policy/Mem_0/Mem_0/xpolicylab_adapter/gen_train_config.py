@@ -9,6 +9,7 @@ Used by ../../train.sh (train_module=execution|both); can also be run standalone
 """
 
 import argparse
+import json
 import os
 import sys
 
@@ -45,6 +46,10 @@ def main() -> None:
     cfg.trainer.train_steps = args.train_steps
     cfg.trainer.enable_wandb = _b(args.enable_wandb)
     cfg.vla_dataset.RMBench.repo_id = os.path.abspath(os.path.expanduser(args.repo_id))
+    with open(os.path.join(args.repo_id, "meta/info.json")) as handle:
+        features = json.load(handle)["features"]
+    cfg.execution_module.action_model.state_dim = features["observation.state"]["shape"][0]
+    cfg.execution_module.action_model.action_dim = features["action"]["shape"][0]
     if args.norm_stats_path:
         cfg.dataloader.norm_stats_path = os.path.abspath(os.path.expanduser(args.norm_stats_path))
 

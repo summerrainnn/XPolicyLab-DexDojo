@@ -85,6 +85,9 @@ class Trainer:
             transformer_path,
             torch_dtype=torch.float32,
             torch_device='cpu',
+            action_dim=config.action_dim,
+            ignore_mismatched_sizes=True,
+            low_cpu_mem_usage=False,
             attn_mode="flex"
         )
 

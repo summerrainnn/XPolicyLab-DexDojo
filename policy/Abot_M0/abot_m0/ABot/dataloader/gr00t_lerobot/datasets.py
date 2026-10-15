@@ -1833,7 +1833,7 @@ def generate_action_mask_for_used_keys(action_modalities: dict, used_action_keys
                 dim_count = 1
             
             # Check if it's gripper-related
-            is_gripper = "gripper" in subkey.lower()
+            is_gripper = "gripper" in subkey.lower() and dim_count == 1
             
             # Generate mask value for each dimension
             for _ in range(dim_count):

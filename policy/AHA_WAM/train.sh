@@ -138,6 +138,15 @@ train_args=(
     "output_dir=${OUTPUT_ROOT}/${ckpt_setting}"
 )
 
+if [[ "${env_cfg_type}" == "marvin_wuji" ]]; then
+    train_args+=("+model.checkpoint_shape_adapt=true" "data.train.shape_meta.action=[{key:default,raw_shape:54,shape:54}]"
+                 "data.train.shape_meta.state=[{key:default,raw_shape:54,shape:54}]")
+    for split in train val; do
+        train_args+=("data.${split}.processor.action_output_dim=54"
+                     "data.${split}.processor.proprio_output_dim=54")
+    done
+fi
+
 if [[ -n "${INIT_CHECKPOINT}" ]]; then
     train_args+=("init_checkpoint=${INIT_CHECKPOINT}")
 fi

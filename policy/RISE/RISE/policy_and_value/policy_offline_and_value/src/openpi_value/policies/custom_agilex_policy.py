@@ -43,7 +43,7 @@ class CustomAgilexInputs(transforms.DataTransformFn):
         "his_-100_hand_right": "right_wrist_-100_rgb",
 
         # * future frames
-        
+
         "fut_1_top_head": "base_1_rgb",
         "fut_1_hand_left": "left_wrist_1_rgb",  # Fixed: was "his_1_hand_left"
         "fut_1_hand_right": "right_wrist_1_rgb",  # Fixed: was "his_1_hand_right"
@@ -52,7 +52,7 @@ class CustomAgilexInputs(transforms.DataTransformFn):
     all_rename_map = {**required_rename_map, **optional_rename_map}
 
     EXTRA_CAMERAS = tuple(optional_rename_map.keys())
-    
+
     def __call__(self, data: dict) -> dict:
         # We only mask padding for pi0 model, not pi0-FAST
         mask_padding = self.model_type == _model.ModelType.PI0
@@ -120,7 +120,7 @@ class CustomAgilexInputs(transforms.DataTransformFn):
                 action_mask = np.ones_like(actions, dtype=bool)
                 action_mask[:, self.action_dim:] = False
                 inputs["action_mask"] = action_mask
-            
+
             inputs["actions"] = actions.squeeze()
 
 
@@ -130,10 +130,10 @@ class CustomAgilexInputs(transforms.DataTransformFn):
         # * Custom
         if "frame_index" in data:
             inputs["frame_index"] = data["frame_index"]
-        
+
         if "frame_index_progress" in data:
             inputs["frame_index_progress"] = data["frame_index_progress"]
-        
+
         if "is_failure_data" in data:
             inputs["is_failure_data"] = data["is_failure_data"]
 
@@ -162,22 +162,22 @@ class CustomAgilexInputs(transforms.DataTransformFn):
                     action_advantage = action_advantage.detach().clone()
                 else:
                     NotImplementedError(f"Unsupported type for action_advantage: {type(action_advantage)}")
-                
+
             else:
                 action_advantage = torch.tensor(1.)
-            
+
             inputs["action_advantage"] = action_advantage
 
         if "action_advantage_original" in data:
             action_advantage_original = data["action_advantage_original"]
-        
+
             if type(action_advantage_original) is np.ndarray:
                 action_advantage_original = torch.from_numpy(action_advantage_original)
             elif type(action_advantage_original) is torch.Tensor:
                 action_advantage_original = action_advantage_original.detach().clone()
             else:
                 NotImplementedError(f"Unsupported type for action_advantage_original: {type(action_advantage_original)}")
-            
+
             inputs["action_advantage_original"] = action_advantage_original
 
         if "image_original" in data:
@@ -191,8 +191,9 @@ class CustomAgilexInputs(transforms.DataTransformFn):
 
 @dataclasses.dataclass(frozen=True)
 class CustomAgilexOutputs(transforms.DataTransformFn):
+    action_dim: int = 14
     """Outputs for the CustomAgilex policy."""
 
     def __call__(self, data: dict) -> dict:
         # Return the first 14 dimensions of actions (13 joints + 1 gripper)
-        return {"actions": np.asarray(data["actions"][:, :14])} 
+        return {"actions": np.asarray(data["actions"][..., :self.action_dim])}

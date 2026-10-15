@@ -35,7 +35,7 @@ def load_stats(cfg, device):
     return (
         torch.tensor(mean, device=device),
         torch.tensor(std, device=device),
-        torch.from_numpy(build_action_mask(action_length)).to(device),
+        torch.from_numpy(build_action_mask(action_length, width=mean.shape[-1])).to(device),
     )
 
 

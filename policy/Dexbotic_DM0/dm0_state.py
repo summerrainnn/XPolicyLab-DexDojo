@@ -54,6 +54,16 @@ def aa_to_quat_wxyz(axis_angle: np.ndarray) -> np.ndarray:
 def pack_dm0_state(observation: dict) -> np.ndarray:
     """Pack XPolicyLab observation state into DM0 32D proprio vector."""
     state_dict = observation["state"]
+    if np.asarray(state_dict["left_ee_joint_state"]).size == 20:
+        parts = []
+        for side in ("left", "right"):
+            pose = np.asarray(state_dict[f"{side}_ee_pose"])
+            joint = np.asarray(state_dict[f"{side}_arm_joint_state"]).reshape(-1)
+            hand = np.asarray(state_dict[f"{side}_ee_joint_state"]).reshape(-1)
+            if joint.size != 7 or hand.size != 20:
+                raise ValueError("DM0 Marvin requires 7 arm + 20 hand joints per side")
+            parts.extend([joint, hand, pose[:3], rotm2aa(quat_wxyz_to_rotm(pose[3:7]))])
+        return np.concatenate(parts).astype(np.float32)
     vec = np.zeros(STATE_DIM, dtype=np.float32)
 
     for side, base in (("left", 0), ("right", 14)):
@@ -79,6 +89,17 @@ def unpack_dm0_action_step(
 ) -> dict:
     """Convert one 32D DM0 action vector into XPolicyLab action dict."""
     vec = np.asarray(action_vec, dtype=np.float32).reshape(-1)
+    if robot_action_dim_info["ee_dim"] == [20, 20]:
+        if vec.size != 66:
+            raise ValueError(f"Marvin DM0 requires 66D checkpoint, got {vec.size}")
+        result = {}
+        for side, base in (("left", 0), ("right", 33)):
+            if action_type == "joint":
+                result[f"{side}_arm_joint_state"] = vec[base:base+7].copy()
+            else:
+                result[f"{side}_ee_pose"] = np.concatenate([vec[base+27:base+30], aa_to_quat_wxyz(vec[base+30:base+33])])
+            result[f"{side}_ee_joint_state"] = vec[base+7:base+27].copy()
+        return result
     if vec.shape[0] < STATE_DIM:
         raise ValueError(f"DM0 action dim expected >= {STATE_DIM}, got {vec.shape[0]}")
 

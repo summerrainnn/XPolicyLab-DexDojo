@@ -62,6 +62,14 @@ resolve_patterns_csv() {
   echo "${bench_name}.${ckpt_name}.${env_cfg_type}"
 }
 
+if [[ "${env_cfg_type}" == "marvin_wuji" ]]; then
+  if [[ "${action_type}" != "joint" ]]; then
+    echo "Marvin Spirit training uses absolute joint actions" >&2
+    exit 1
+  fi
+  export SPIRIT_ROBOT_TYPE=marvin_wuji
+fi
+
 patterns_csv="$(resolve_patterns_csv)"
 
 echo "[Spirit_v15] raw_data_root=${raw_data_root}"

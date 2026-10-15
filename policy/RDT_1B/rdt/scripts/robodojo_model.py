@@ -11,6 +11,10 @@ from scripts.agilex_model import (
 
 
 class RoboticDiffusionTransformerModel(_BaseRoboticDiffusionTransformerModel):
+    def __init__(self, args, **kwargs):
+        super().__init__(args, **kwargs)
+        self.robot_indices = list(range(54)) if args.get("robot_action_dim") == 54 else AGILEX_STATE_INDICES
+
     def _format_joint_to_state(self, joints):
         B, N, _ = joints.shape
         state = torch.zeros(
@@ -18,17 +22,17 @@ class RoboticDiffusionTransformerModel(_BaseRoboticDiffusionTransformerModel):
             device=joints.device,
             dtype=joints.dtype,
         )
-        state[:, :, AGILEX_STATE_INDICES] = joints
+        state[:, :, self.robot_indices] = joints
         state_elem_mask = torch.zeros(
             (B, self.args["model"]["state_token_dim"]),
             device=joints.device,
             dtype=joints.dtype,
         )
-        state_elem_mask[:, AGILEX_STATE_INDICES] = 1
+        state_elem_mask[:, self.robot_indices] = 1
         return state, state_elem_mask
 
     def _unformat_action_to_joint(self, action):
-        return action[:, :, AGILEX_STATE_INDICES]
+        return action[:, :, self.robot_indices]
 
 
 def create_model(args, **kwargs):

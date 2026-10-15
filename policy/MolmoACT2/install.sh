@@ -76,6 +76,7 @@ install_infer_env() {
 install_train_env() {
   echo ""
   echo "=== 3. 训练环境 (lerobot/.venv) ==="
+  python "${POLICY_DIR}/patch_native.py" "${LEROBOT_DIR}"
   cd "${LEROBOT_DIR}"
   UV_LINK_MODE=copy uv pip install -e ".[molmoact2,training,scipy-dep]" --index-strategy unsafe-best-match
   uv run python -c "from lerobot.policies.factory import get_policy_class; print('molmoact2 policy:', get_policy_class('molmoact2'))"

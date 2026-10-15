@@ -353,9 +353,24 @@ def _patch_spirit_backbone_config(config_path: Path, backbone_override: str | No
     return original
 
 
+from XPolicyLab.utils.process_data import pack_robot_state, unpack_robot_state
+from XPolicyLab.utils.robot_layout import MARVIN
+
+
 class Model(ModelTemplate):
     def __init__(self, model_cfg: dict[str, Any]):
         self.model_cfg = dict(model_cfg)
+        self.marvin = model_cfg.get("env_cfg_type") == "marvin_wuji"
+        if self.marvin:
+            task = model_cfg.get("task_name") or "marvin_task"
+            TASK_INFO[task] = {"robot_type": "marvin_wuji", "action_type": "joint",
+                              "task": model_cfg.get("prompt") or task,
+                              "observation.images.cam_high": "high",
+                              "observation.images.cam_left_wrist": "left_hand",
+                              "observation.images.cam_right_wrist": "right_hand"}
+            self.model_cfg["fallback_task_name"] = task
+            self.model_cfg["force_default_task_name"] = True
+            self.robot_action_dim_info = {"arm_dim": [7, 7], "ee_dim": [20, 20]}
         self.device = self._get_device(self.model_cfg.get("device", "auto"))
 
         checkpoint_path = _resolve_spirit_checkpoint_dir(self.model_cfg)
@@ -522,6 +537,12 @@ class Model(ModelTemplate):
         with torch.inference_mode():
             action_tensor = self.policy.select_action(batch).cpu()
 
+        if self.marvin:
+            actions = action_tensor.squeeze(0).numpy()[:used_chunk_size]
+            MARVIN.validate(actions)
+            return {"actions": actions.tolist(), "action_type": "joint",
+                    "task_name": resolved_task_name, "instruction": instruction}
+
         actions = _post_process_action(
             action_tensor.squeeze(0).numpy(),
             batch["observation.state.before_norm"].numpy(),
@@ -576,7 +597,11 @@ class Model(ModelTemplate):
             "robot_type": [robot_type],
         }
 
-        state_tensor = self._extract_internal_state(spirit_observation, robot_type)
+        if self.marvin:
+            state_tensor = torch.from_numpy(pack_robot_state(
+                observation, "joint", self.robot_action_dim_info).astype(np.float32))
+        else:
+            state_tensor = self._extract_internal_state(spirit_observation, robot_type)
         item["observation.state.before_norm"] = state_tensor.clone()
         item["observation.state"] = state_tensor.unsqueeze(0).to(self.device)
 
@@ -790,12 +815,14 @@ class Model(ModelTemplate):
     @staticmethod
     def _resolve_action_type(task_name: str) -> str:
         action_type = TASK_INFO[task_name].get("action_type")
-        if action_type == "leftjoint":
+        if action_type in ("leftjoint", "joint"):
             return "joint"
         return "ee"
 
     def _decode_action_chunk(self, action_chunk: list[list[float]], task_name: str, action_type: str):
         robot_type = TASK_INFO[task_name]["robot_type"]
+        if robot_type == "marvin_wuji":
+            return unpack_robot_state(np.asarray(action_chunk, dtype=np.float32), "joint", self.robot_action_dim_info)
         if action_type == "joint":
             return [self._decode_joint_action(action, robot_type) for action in action_chunk]
         return [self._decode_ee_action(action, robot_type) for action in action_chunk]

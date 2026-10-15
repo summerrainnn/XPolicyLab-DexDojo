@@ -1045,4 +1045,5 @@ ROBOT_TYPE_CONFIG_MAP = {
     "demo_data": DemoDataConfig(),
 
     "arx_x5": ArxX5DataConfig(),
+    "marvin_wuji": ArxX5DataConfig(),
 }

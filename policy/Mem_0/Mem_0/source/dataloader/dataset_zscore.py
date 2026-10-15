@@ -349,9 +349,10 @@ class LeRobot_Dataset(Dataset):
         state_full = sample["observation.state"]  # shape: (16,)
         if not isinstance(state_full, torch.Tensor):
             state_full = torch.tensor(state_full)
-        safe_state_std = np.where(state_std[ : 14] < 1e-6, 1.0, state_std[ : 14])
-        state_normalized = (state_full[:14] - state_mean[:14]) / safe_state_std # shape: (14,)
-        state_original = state_full[14:]  # shape: (2,)
+        norm_dims = 14 if state_full.shape[-1] == 16 else state_full.shape[-1]
+        safe_state_std = np.where(state_std[ :norm_dims] < 1e-6, 1.0, state_std[ :norm_dims])
+        state_normalized = (state_full[:norm_dims] - state_mean[:norm_dims]) / safe_state_std # shape: (14,)
+        state_original = state_full[norm_dims:]  # shape: (2,)
         state = torch.cat([state_normalized, state_original]).reshape(1, -1)  # shape: (1, 16)
         
         # normalize action: normalize the first 14 dims and keep the last 2 unchanged
@@ -360,9 +361,9 @@ class LeRobot_Dataset(Dataset):
         action_full = sample["action"]  # shape: (16, 16)
         if not isinstance(action_full, torch.Tensor):
             action_full = torch.tensor(action_full)
-        safe_action_std = np.where(action_std[ : 14] < 1e-6, 1.0, action_std[ : 14])
-        action_normalized = (action_full[:, :14] - action_mean[:14]) / safe_action_std  # shape: (16, 14)
-        action_original = action_full[:, 14:]  # shape: (16, 2)
+        safe_action_std = np.where(action_std[ :norm_dims] < 1e-6, 1.0, action_std[ :norm_dims])
+        action_normalized = (action_full[:, :norm_dims] - action_mean[:norm_dims]) / safe_action_std  # shape: (16, 14)
+        action_original = action_full[:, norm_dims:]  # shape: (16, 2)
         action = torch.cat([action_normalized, action_original], dim=1)  # shape: (16, 16)
         
         # get subtask from sample

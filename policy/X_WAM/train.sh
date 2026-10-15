@@ -110,6 +110,11 @@ train_overrides=(
 [[ -n "${batch_size_per_gpu}" ]]    && train_overrides+=("batch_size_per_gpu=${batch_size_per_gpu}")
 [[ -n "${num_workers_per_gpu}" ]]   && train_overrides+=("num_workers_per_gpu=${num_workers_per_gpu}")
 
+if [[ "${env_cfg_type}" == "marvin_wuji" ]]; then
+    python "${XWAM_DIR}/scripts/compute_stats.py" --dataset-root "${dataset_path}" --output "${dataset_path}/quantile_pretrain.yaml"
+    train_overrides+=("action_dim=52" "proprio_dim=54" "robot_statistics=${dataset_path}/quantile_pretrain.yaml" "adapt_robot_heads=true")
+fi
+
 cd "${XWAM_DIR}"
 exec torchrun \
     --nnodes=1 \

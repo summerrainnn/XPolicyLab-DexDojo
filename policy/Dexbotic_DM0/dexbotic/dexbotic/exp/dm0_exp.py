@@ -202,7 +202,9 @@ class DM0ModelConfig(ModelConfig):
     model_name_or_path: str = field(default="./checkpoints/DM0-base")
 
     def build_model(self) -> DM0ForCausalLM:
-        model = DM0ForCausalLM.from_pretrained(self.model_name_or_path)
+        width = int(os.environ.get("DM0_ACTION_DIM", "32"))
+        model = DM0ForCausalLM.from_pretrained(self.model_name_or_path, action_dim=width,
+                                              ignore_mismatched_sizes=(width != 32))
         return model
 
 

@@ -26,7 +26,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 
 from XPolicyLab.model_template import ModelTemplate
-from XPolicyLab.utils.process_data import get_robot_action_dim_info
+from XPolicyLab.utils.process_data import get_robot_action_dim_info, unpack_robot_state
 
 POLICY_DIR = Path(__file__).resolve().parent
 XWAM_ROOT = POLICY_DIR / "X-WAM"
@@ -162,6 +162,12 @@ class Model(ModelTemplate):
             raise ValueError("env_cfg_type is required for X-WAM.")
         self.robot_action_dim_info = get_robot_action_dim_info(self.env_cfg_type)
         self.num_arms = len(self.robot_action_dim_info["arm_dim"])
+        hands = self.robot_action_dim_info["ee_dim"]
+        if len(set(hands)) != 1:
+            raise ValueError("X-WAM requires equal hand widths")
+        self.hand_dim = hands[0]
+        self.proprio_arm_dim = 7 + self.hand_dim
+        self.action_arm_dim = 6 + self.hand_dim
         if self.num_arms not in (1, 2):
             raise ValueError(f"X-WAM supports single- or dual-arm only, got {self.num_arms} arms.")
 
@@ -219,7 +225,7 @@ class Model(ModelTemplate):
         Single-arm fills the right block with zeros (masked out downstream).
         """
         state = obs.get("state", {})
-        vec = np.zeros(2 * _PROPRIO_ARM_DIM, dtype=np.float32)
+        vec = np.zeros(2 * self.proprio_arm_dim, dtype=np.float32)
 
         if self.num_arms == 1:
             arm_keys = [("ee_pose", "ee_joint_state")]
@@ -233,13 +239,13 @@ class Model(ModelTemplate):
             if pose_key not in state:
                 raise KeyError(f"Missing '{pose_key}' in obs['state'] for X-WAM proprio.")
             pose = np.asarray(state[pose_key], dtype=np.float64).reshape(_EE_POSE_DIM)
-            grip = float(np.asarray(state[grip_key], dtype=np.float64).reshape(-1)[0])
-            off = i * _PROPRIO_ARM_DIM
+            grip = np.asarray(state[grip_key], dtype=np.float64).reshape(self.hand_dim)
+            off = i * self.proprio_arm_dim
             vec[off : off + 3] = pose[:3]                          # xyz (frame-invariant)
             # Reframe orientation into the training coordinate system before it
             # reaches the model.
             vec[off + 3 : off + 7] = _reframe_quat_env_to_train(pose[3:7])
-            vec[off + 7] = grip                                    # gripper (frame-invariant)
+            vec[off + 7 : off + self.proprio_arm_dim] = grip                                    # gripper (frame-invariant)
         return vec
 
     def _encode_obs(self, obs: dict) -> dict[str, Any]:
@@ -348,25 +354,30 @@ class Model(ModelTemplate):
             R[k]    = dR[k] @ ... @ dR[0] @ anchor_R   (left-multiplied accumulation)
             grip[k] = clip(anchor_grip + sum(dgrip[0..k]), 0, 1)
         """
+        delta_actions = np.asarray(delta_actions)
+        if delta_actions.shape[-1] != self.num_arms * self.action_arm_dim:
+            raise ValueError("X-WAM action width does not match this robot")
         ta = delta_actions.shape[0]
         n_exec = ta if self.replan_steps is None else min(self.replan_steps, ta)
-        out = np.zeros((n_exec, self.num_arms * _PROPRIO_ARM_DIM), dtype=np.float32)
+        out = np.zeros((n_exec, self.num_arms * self.proprio_arm_dim), dtype=np.float32)
 
         for arm in range(self.num_arms):
-            a_off = arm * _ACTION_ARM_DIM
-            p_off = arm * _PROPRIO_ARM_DIM
+            a_off = arm * self.action_arm_dim
+            p_off = arm * self.proprio_arm_dim
             cur_pos = anchor[p_off : p_off + 3].astype(np.float64).copy()
             cur_R = Rotation.from_quat(
                 anchor[p_off + 3 : p_off + 7][[1, 2, 3, 0]].astype(np.float64)  # wxyz -> xyzw
             ).as_matrix()
-            cur_grip = float(anchor[p_off + 7])
+            cur_grip = anchor[p_off + 7 : p_off + self.proprio_arm_dim].astype(np.float64).copy()
 
             for k in range(n_exec):
-                d = delta_actions[k, a_off : a_off + _ACTION_ARM_DIM].astype(np.float64)
+                d = delta_actions[k, a_off : a_off + self.action_arm_dim].astype(np.float64)
                 cur_pos = cur_pos + d[:3]
                 delta_R = Rotation.from_rotvec(d[3:6]).as_matrix()
                 cur_R = delta_R @ cur_R
-                cur_grip = float(np.clip(cur_grip + d[6], 0.0, 1.0))
+                cur_grip = cur_grip + d[6:]
+                if self.hand_dim == 1:
+                    cur_grip = np.clip(cur_grip, 0.0, 1.0)
 
                 quat_xyzw = Rotation.from_matrix(cur_R).as_quat()
                 quat_wxyz_train = _canonical_quat_wxyz(quat_xyzw[[3, 0, 1, 2]])
@@ -374,36 +385,19 @@ class Model(ModelTemplate):
                 # the absolute orientation back to the env frame for the env.
                 out[k, p_off : p_off + 3] = cur_pos
                 out[k, p_off + 3 : p_off + 7] = _reframe_quat_train_to_env(quat_wxyz_train)
-                out[k, p_off + 7] = cur_grip
+                out[k, p_off + 7 : p_off + self.proprio_arm_dim] = cur_grip
         return out
 
     def _poses_to_action_dicts(self, abs_poses: np.ndarray) -> list[dict]:
         """Convert [Ta, num_arms*8] absolute poses into XPolicyLab ee action dicts."""
-        action_list = []
-        for row in abs_poses:
-            if self.num_arms == 1:
-                action_list.append(
-                    {
-                        "ee_pose": row[:_EE_POSE_DIM].astype(np.float32),
-                        "ee_joint_state": row[7:8].astype(np.float32),
-                    }
-                )
-            else:
-                action_list.append(
-                    {
-                        "left_ee_pose": row[:_EE_POSE_DIM].astype(np.float32),
-                        "left_ee_joint_state": row[7:8].astype(np.float32),
-                        "right_ee_pose": row[8 : 8 + _EE_POSE_DIM].astype(np.float32),
-                        "right_ee_joint_state": row[15:16].astype(np.float32),
-                    }
-                )
-        return action_list
+        info = {"arm_dim": [7] * self.num_arms, "ee_dim": [self.hand_dim] * self.num_arms}
+        return unpack_robot_state(abs_poses, "ee", info)
 
     def _zero_actions(self) -> list[dict]:
         n = self.replan_steps or 1
-        identity = np.zeros(self.num_arms * _PROPRIO_ARM_DIM, dtype=np.float32)
+        identity = np.zeros(self.num_arms * self.proprio_arm_dim, dtype=np.float32)
         for arm in range(self.num_arms):
-            identity[arm * _PROPRIO_ARM_DIM + 3] = 1.0  # quat w = 1
+            identity[arm * self.proprio_arm_dim + 3] = 1.0  # quat w = 1
         return self._poses_to_action_dicts(np.tile(identity, (n, 1)))
 
 

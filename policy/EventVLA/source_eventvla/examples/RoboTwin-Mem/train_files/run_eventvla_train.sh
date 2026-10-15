@@ -64,7 +64,7 @@ fi
 accelerate launch \
   --config_file eventvla/config/deepseeds/deepspeed_zero2.yaml \
   --main_process_port 38567 \
-  --num_processes 8 \
+  --num_processes "${EVENTVLA_NUM_PROCESSES:-8}" \
   eventvla/training/train_eventvla.py \
   --config_yaml ${config_yaml} \
   --framework.name ${Framework_name} \

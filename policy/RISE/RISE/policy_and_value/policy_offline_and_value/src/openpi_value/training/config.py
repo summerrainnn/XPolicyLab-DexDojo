@@ -364,7 +364,7 @@ class LerobotCustomAgilexDataConfig(DataConfigFactory):
                     model_type=model_config.model_type,
                 )
             ],
-            outputs=[custom_agilex_policy.CustomAgilexOutputs()],
+            outputs=[custom_agilex_policy.CustomAgilexOutputs(action_dim=54 if model_config.action_dim == 54 else 14)],
         )
 
         # Apply delta action transform if enabled
@@ -787,6 +787,9 @@ if len({config.name for config in _CONFIGS}) != len(_CONFIGS):
             print(f"Config name '{config.name}' appears {name_counts} times.")
     
     raise ValueError("Config names must be unique.")
+if os.environ.get("RISE_ROBOT_DIM") == "54":
+    _CONFIGS = [dataclasses.replace(c, model=dataclasses.replace(c.model, action_dim=54)) for c in _CONFIGS]
+
 _CONFIGS_DICT = {config.name: config for config in _CONFIGS}
 
 
