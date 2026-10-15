@@ -1,0 +1,35 @@
+# Marvin/Wuji deployment profile. Supply a matching trained checkpoint and its model-specific assets.
+policy_name: OpenVLA_OFT
+protocol: ws
+bench_name: RoboDojo
+task_name: null
+ckpt_name: null
+ckpt_setting: null
+env_cfg_type: marvin_wuji
+action_type: joint
+seed: null
+eval_batch: false
+checkpoint_num: null
+result_dir: ./results/openvla-oft/
+obs_transform_pipeline: xspark-v1.0
+base_model_path: checkpoints/shared/openvla-7b
+use_film: true
+use_l1_regression: true
+use_proprio: true
+use_diffusion: false
+num_images_in_input: 3
+center_crop: true
+lora_rank: 32
+num_open_loop_steps: 25
+unnorm_key: null
+tfds_dataset_name: null
+port: 6000
+host: 127.0.0.1
+robot_action_dim_info:
+  arm_dim:
+  - 7
+  - 7
+  ee_dim:
+  - 20
+  - 20
+allow_default_robot_dims: false

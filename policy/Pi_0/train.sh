@@ -13,6 +13,21 @@ action_type=$4
 seed=$5
 gpu_id=$6
 
+if [[ "${env_cfg_type}" == "marvin_wuji" || "${env_cfg_type}" == "tianji_marvin_wuji" ]]; then
+  : "${OPENPI_DATASET:?Set OPENPI_DATASET to the converted LeRobot directory}"
+  : "${OPENPI_BASE_PARAMS:?Set OPENPI_BASE_PARAMS to pretrained parameters}"
+  : "${OPENPI_OUTPUT:?Set OPENPI_OUTPUT to a work_dirs or external training directory}"
+  policy_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  project_root="$(cd "${policy_root}/../../.." && pwd)"
+  export PYTHONPATH="${project_root}:${project_root}/XPolicyLab:${project_root}/XPolicyLab/policy/Pi_05/openpi/src:${PYTHONPATH:-}"
+  export CUDA_VISIBLE_DEVICES="${gpu_id}"
+  shift 6
+  exec python -m XPolicyLab.policy.Pi_05.dexdojo.train \
+    --dataset "${OPENPI_DATASET}" --base-params "${OPENPI_BASE_PARAMS}" \
+    --output "${OPENPI_OUTPUT}" --model pi0 --seed "${seed}" "$@"
+fi
+
+
 POLICY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # ckpt_setting is the run directory name; pass it verbatim as ckpt_name to eval.sh.
 ckpt_setting="${bench_name}-${ckpt_name}-${env_cfg_type}-${action_type}-${seed}"

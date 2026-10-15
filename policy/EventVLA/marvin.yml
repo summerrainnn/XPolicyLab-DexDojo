@@ -1,0 +1,45 @@
+# Marvin/Wuji deployment profile. Supply a matching trained checkpoint and its model-specific assets.
+policy_name: EventVLA
+protocol: ws
+bench_name: RoboDojo
+task_name: null
+env_cfg_type: marvin_wuji
+action_type: joint
+gpu_id: null
+seed: null
+eval_batch: false
+host: 127.0.0.1
+port: 6000
+eventvla_root: source_eventvla
+checkpoint_path: null
+eventvla_server_host: 127.0.0.1
+eventvla_server_port: 5694
+unnorm_key: new_embodiment
+action_mode: abs
+use_ddim: true
+num_ddim_steps: 10
+image_size: null
+include_state: true
+temporal_absolute_indices: null
+temporal_anchor_deltas: null
+temporal_view_names:
+- cam_high
+- cam_left_wrist
+- cam_right_wrist
+keyframe_commit_confidence_threshold: null
+keyframe_cluster_timestep_window: null
+first_chunk_random_replan: true
+first_chunk_random_replan_seed: 42
+first_chunk_fixed_replan_step: null
+sampling_interval: null
+replan_after_keyframe_commit: true
+save_keyframe_debug: false
+save_progress_debug: false
+robot_action_dim_info:
+  arm_dim:
+  - 7
+  - 7
+  ee_dim:
+  - 20
+  - 20
+allow_default_robot_dims: false

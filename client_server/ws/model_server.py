@@ -66,6 +66,7 @@ class PolicyServer:
     model: Any
     config: PolicyServerConfig = field(default_factory=PolicyServerConfig)
     _server: Server | None = field(default=None, init=False)
+    _case_seed: int | None = field(default=None, init=False)
     _model_lock: asyncio.Lock = field(
         default_factory=asyncio.Lock,
         init=False,
@@ -193,6 +194,17 @@ class PolicyServer:
             return await self._invoke_method(method, *args)
 
     async def _dispatch_frame(self, frame: Frame) -> Frame | None:
+        if frame.message_type == MessageType.CALL:
+            name = frame.payload.get("method")
+            allowed = {"update_obs", "update_obs_batch", "get_action", "get_action_batch",
+                       "begin_episode", "step", "get_action_per_frame", "get_keyframe_interval"}
+            if name not in allowed:
+                raise WsError(ErrorCode.INVALID_FRAME, "Unsupported policy method")
+            method = getattr(self.model, name, None)
+            if not callable(method):
+                raise WsError(ErrorCode.INFER_FAILED, f"Policy does not implement {name}")
+            result = await self._call_model_method(method, *frame.payload.get("args", []))
+            return self._reply(frame, MessageType.CALL_RESULT, {"result": result})
         if frame.message_type == MessageType.HELLO:
             return self._reply(
                 frame,
@@ -221,6 +233,9 @@ class PolicyServer:
 
     async def _handle_prepare_case(self, frame: Frame) -> Frame:
         case_meta = dict(frame.payload)
+        seed = case_meta.get("case_meta", case_meta).get("inference_seed")
+        if seed is not None:
+            self._case_seed = int(seed)
         if frame.action_case_id is not None:
             case_meta.setdefault("action_case_id", frame.action_case_id)
 
@@ -237,7 +252,19 @@ class PolicyServer:
         if not callable(method):
             raise WsError(ErrorCode.RESET_FAILED, "model.reset is not callable")
         try:
-            result = await self._call_model_method(method)
+            async with self._model_lock:
+                if self._case_seed is not None:
+                    import random
+                    import sys
+                    import numpy as np
+                    random.seed(self._case_seed)
+                    np.random.seed(self._case_seed)
+                    torch = sys.modules.get("torch")
+                    if torch is not None:
+                        torch.manual_seed(self._case_seed)
+                        if torch.cuda.is_available():
+                            torch.cuda.manual_seed_all(self._case_seed)
+                result = await self._invoke_method(method)
         except Exception as exc:
             raise WsError(ErrorCode.RESET_FAILED, str(exc)) from exc
         return self._reply(frame, MessageType.RESET_RESULT, _ok_payload(result))

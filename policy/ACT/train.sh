@@ -29,11 +29,11 @@ python3 imitate_episodes.py \
     --ckpt_dir "${SCRIPT_DIR}/checkpoints/${ckpt_setting}-${seed}" \
     --policy_class ACT \
     --kl_weight 10 \
-    --chunk_size 50 \
+    --chunk_size "${ACT_CHUNK_SIZE:-50}" \
     --hidden_dim 512 \
     --batch_size 16 \
     --dim_feedforward 3200 \
-    --num_epochs 6000 \
+    --num_epochs "${XPOLICY_EPOCHS:-6000}" \
     --lr 1e-5 \
     --save_freq 6000 \
     --seed ${seed}

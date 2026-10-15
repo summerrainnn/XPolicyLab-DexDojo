@@ -6,6 +6,8 @@ from enum import Enum
 
 
 class MessageType(str, Enum):
+    CALL = "call"
+    CALL_RESULT = "call_result"
     HELLO = "hello"
     HELLO_ACK = "hello_ack"
     PREPARE_CASE = "prepare_case"
@@ -23,6 +25,7 @@ class MessageType(str, Enum):
 
 
 REQUEST_RESPONSE_PAIRS: dict[MessageType, MessageType] = {
+    MessageType.CALL: MessageType.CALL_RESULT,
     MessageType.HELLO: MessageType.HELLO_ACK,
     MessageType.PREPARE_CASE: MessageType.PREPARE_CASE_ACK,
     MessageType.RESET: MessageType.RESET_RESULT,

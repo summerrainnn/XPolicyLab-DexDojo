@@ -1,0 +1,25 @@
+# Marvin/Wuji deployment profile. Supply a matching trained checkpoint and its model-specific assets.
+policy_name: Xiaomi_Robotics_0
+protocol: ws
+host: 127.0.0.1
+bench_name: RoboDojo
+task_name: null
+env_cfg_type: marvin_wuji
+seed: null
+eval_batch: false
+action_type: ee
+action_length: 30
+checkpoint_tag: last
+model_dir: null
+data_config_name: null
+vlm_processor_path: XiaomiRobotics/Xiaomi-Robotics-0-Pretrain
+default_prompt: Perform the instructed bimanual manipulation task.
+port: 6000
+robot_action_dim_info:
+  arm_dim:
+  - 7
+  - 7
+  ee_dim:
+  - 20
+  - 20
+allow_default_robot_dims: false

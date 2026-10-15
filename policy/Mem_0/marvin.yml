@@ -1,0 +1,79 @@
+# Marvin/Wuji deployment profile. Supply a matching trained checkpoint and its model-specific assets.
+policy_name: Mem_0
+protocol: ws
+port: null
+host: 127.0.0.1
+bench_name: RoboDojo
+task_name: null
+ckpt_name: null
+env_cfg_type: marvin_wuji
+action_type: joint
+action_dim: 54
+seed: null
+eval_batch: false
+device: cuda:0
+image_size:
+- 224
+- 224
+norm_way: minmax
+task_type: null
+execution_ckpt: null
+state_stats_path: null
+planning_module_config_path: Mem_0/source/config/planning_module_inference.yaml
+vllm_url: null
+global_task: null
+action_horizon: 30
+threshold: 2
+execution_module:
+  qwen_vl:
+    model_path: Mem_0/checkpoints/Qwen3-VL-2B-Instruct
+    system_prompt: null
+  memory_bank:
+    window_size: 30
+    initial_anchor_size: 1
+    num_heads: 8
+    dropout: 0.1
+    memory_accumulation: 8
+  action_model:
+    action_model_type: DiT-B
+    hidden_size: 2048
+    add_pos_embed: true
+    max_seq_len: 1024
+    action_dim: 16
+    state_dim: 16
+    action_horizon: 30
+    repeated_diffusion_steps: 8
+    noise_beta_alpha: 1.5
+    noise_beta_beta: 1.0
+    noise_s: 0.999
+    num_timestep_buckets: 1000
+    num_inference_timesteps: 8
+    diffusion_model_cfg:
+      cross_attention_dim: 2048
+      dropout: 0.2
+      final_dropout: true
+      interleave_self_attention: true
+      norm_type: ada_norm
+      num_layers: 16
+      output_dim: 2048
+      positional_embeddings: null
+  classifier:
+    hidden_sizes:
+    - 6144
+    - 2048
+    - 512
+    dropout: 0.1
+    pos_weight: 10.0
+    focal_gamma: 1.0
+    threshold: 0.5
+  loss_weights:
+    lambda_action: 1.0
+    lambda_classifier: 0.2
+robot_action_dim_info:
+  arm_dim:
+  - 7
+  - 7
+  ee_dim:
+  - 20
+  - 20
+allow_default_robot_dims: false

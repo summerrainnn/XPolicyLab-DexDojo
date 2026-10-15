@@ -7,6 +7,17 @@ action_type=${4}
 seed=${5}
 gpu_id=${6}
 
+shift 6
+if [[ "${DP_TRAIN_MODE:-native}" == "ddp" ]]; then
+    : "${DP_DATA:?Set DP_DATA to prepared DP data}"
+    : "${DP_OUTPUT:?Set DP_OUTPUT to a work_dirs or external directory}"
+    export CUDA_VISIBLE_DEVICES="${gpu_id}"
+    IFS=',' read -ra devices <<< "${gpu_id}"
+    exec torchrun --standalone --nproc_per_node="${#devices[@]}" \
+        -m XPolicyLab.policy.DP.dexdojo.train --data "${DP_DATA}" \
+        --output "${DP_OUTPUT}" --seed "${seed}" "$@"
+fi
+
 DEBUG=False
 
 addition_info=train
@@ -53,4 +64,6 @@ python train.py --config-name="${alg_name}.yaml" \
                 training.device="cuda:0" \
                 exp_name=${exp_name} \
                 logging.mode=${wandb_mode} \
-                setting=${env_cfg_type}
+                setting=${env_cfg_type} \
+                ${XPOLICY_EPOCHS:+training.num_epochs=${XPOLICY_EPOCHS}} \
+                "$@"

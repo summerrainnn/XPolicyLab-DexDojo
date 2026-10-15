@@ -1,0 +1,32 @@
+# Marvin/Wuji deployment profile. Supply a matching trained checkpoint and its model-specific assets.
+policy_name: Being_H05
+protocol: ws
+host: 127.0.0.1
+task_name: null
+env_cfg_type: marvin_wuji
+seed: null
+eval_batch: false
+checkpoint_num: null
+result_dir: ./results/Being_H05/
+obs_transform_pipeline: null
+action_type: joint
+prompt: null
+model_path: null
+data_config_name: robodojo_qpos
+bench_name: RoboDojo
+embodiment_tag: new_embodiment
+prompt_template: long
+prop_pos: front
+max_view_num: -1
+use_fixed_view: false
+enable_rtc: false
+device: cuda
+port: 6000
+robot_action_dim_info:
+  arm_dim:
+  - 7
+  - 7
+  ee_dim:
+  - 20
+  - 20
+allow_default_robot_dims: false

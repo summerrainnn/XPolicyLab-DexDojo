@@ -1,0 +1,28 @@
+# Marvin/Wuji deployment profile. Supply a matching trained checkpoint and its model-specific assets.
+policy_name: LingBot_VA
+bench_name: RoboDojo
+task_name: null
+env_cfg: null
+env_cfg_type: marvin_wuji
+seed: 0
+eval_batch: false
+protocol: ws
+host: 127.0.0.1
+port: null
+config_name: robotwin30_train
+checkpoint_path: null
+base_model_path: null
+action_type: joint
+rollout_mode: closed_loop
+result_dir: ./results/LingBot_VA/
+va_server_host: 127.0.0.1
+va_server_port: 10001
+obs_transform_pipeline: xspark-v1.0
+robot_action_dim_info:
+  arm_dim:
+  - 7
+  - 7
+  ee_dim:
+  - 20
+  - 20
+allow_default_robot_dims: false

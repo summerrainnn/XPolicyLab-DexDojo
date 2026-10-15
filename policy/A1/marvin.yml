@@ -1,0 +1,33 @@
+# Marvin/Wuji deployment profile. Supply a matching trained checkpoint and its model-specific assets.
+policy_name: A1
+protocol: ws
+host: 127.0.0.1
+port: null
+bench_name: RoboDojo
+task_name: null
+env_cfg_type: marvin_wuji
+seed: null
+eval_batch: false
+action_type: joint
+action_dim: 54
+model_path: null
+data_stats_path: null
+norm_stats_json_path: null
+normalization_type: bounds_q99
+no_norm: false
+delta: true
+delta_mask: 6,-1,6,-1
+action_chunk_size: 50
+sequence_length: 600
+use_wrist_image: true
+prompt: null
+image_resize: null
+request_log_dir: null
+robot_action_dim_info:
+  arm_dim:
+  - 7
+  - 7
+  ee_dim:
+  - 20
+  - 20
+allow_default_robot_dims: false

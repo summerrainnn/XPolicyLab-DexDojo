@@ -1,18 +1,52 @@
 {
     "piper": {
-        "arm_dim": [6, 6],
-        "ee_dim": [1, 1]
+        "arm_dim": [
+            6,
+            6
+        ],
+        "ee_dim": [
+            1,
+            1
+        ]
     },
     "arx_x5": {
-        "arm_dim": [6, 6],
-        "ee_dim": [1, 1]
+        "arm_dim": [
+            6,
+            6
+        ],
+        "ee_dim": [
+            1,
+            1
+        ]
     },
     "piper_x": {
-        "arm_dim": [6, 6],
-        "ee_dim": [1, 1]
+        "arm_dim": [
+            6,
+            6
+        ],
+        "ee_dim": [
+            1,
+            1
+        ]
     },
     "tianji_marvin_wuji": {
-        "arm_dim": [7, 7],
-        "ee_dim": [20, 20]
+        "arm_dim": [
+            7,
+            7
+        ],
+        "ee_dim": [
+            20,
+            20
+        ]
+    },
+    "marvin_wuji": {
+        "arm_dim": [
+            7,
+            7
+        ],
+        "ee_dim": [
+            20,
+            20
+        ]
     }
 }

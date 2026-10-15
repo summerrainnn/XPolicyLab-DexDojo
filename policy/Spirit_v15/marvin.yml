@@ -1,0 +1,31 @@
+# Marvin/Wuji deployment profile. Supply a matching trained checkpoint and its model-specific assets.
+policy_name: Spirit_v15
+protocol: ws
+host: 127.0.0.1
+bench_name: RoboDojo
+task_name: null
+env_cfg_type: marvin_wuji
+action_type: ee
+seed: 0
+eval_batch: false
+checkpoint_num: null
+policy_uv_env_path: spirit_v15
+spirit_base_weights: checkpoints/shared/Spirit-v1.5
+spirit_backbone_path: checkpoints/shared/Qwen3-VL-4B-Instruct
+checkpoint_path: null
+model_path: null
+prompt: null
+fallback_task_name: stack_bowls
+force_default_task_name: false
+device: auto
+used_chunk_size: 60
+raw_embodiment_stats_json_path: null
+port: 6000
+robot_action_dim_info:
+  arm_dim:
+  - 7
+  - 7
+  ee_dim:
+  - 20
+  - 20
+allow_default_robot_dims: false

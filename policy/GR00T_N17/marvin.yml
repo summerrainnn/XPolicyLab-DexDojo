@@ -1,0 +1,25 @@
+# Marvin/Wuji deployment profile. Supply a matching trained checkpoint and its model-specific assets.
+policy_name: GR00T_N17
+protocol: ws
+host: 127.0.0.1
+bench_name: RoboDojo
+task_name: null
+env_cfg_type: marvin_wuji
+seed: null
+eval_batch: false
+action_type: joint
+embodiment_tag: NEW_EMBODIMENT
+checkpoint_num: last
+model_dir: null
+cosmos_model_path: shared/Cosmos-Reason2-2B
+default_prompt: Perform the robot manipulation task.
+policy_uv_env_path: gr00t_n17
+port: 6000
+robot_action_dim_info:
+  arm_dim:
+  - 7
+  - 7
+  ee_dim:
+  - 20
+  - 20
+allow_default_robot_dims: false

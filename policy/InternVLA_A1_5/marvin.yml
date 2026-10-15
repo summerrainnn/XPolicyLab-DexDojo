@@ -1,0 +1,37 @@
+# Marvin/Wuji deployment profile. Supply a matching trained checkpoint and its model-specific assets.
+policy_name: InternVLA_A1_5
+protocol: ws
+host: 127.0.0.1
+bench_name: RoboDojo
+task_name: null
+env_cfg: null
+env_cfg_type: marvin_wuji
+seed: null
+eval_batch: false
+checkpoint_num: 60000
+ckpt_path: null
+result_dir: ./results/InternVLA-A1.5-20/
+obs_transform_pipeline: null
+action_type: joint
+stats_key: unified_robot
+resize_size: 224
+infer_horizon: 20
+action_horizon_size: 50
+action_mode: delta
+device: cuda
+dtype: float32
+inference_backend: standard
+tokenize_state: true
+max_state_dim: 54
+max_action_dim: 54
+port: 6000
+ws_ping_interval_s: null
+ws_ping_timeout_s: null
+robot_action_dim_info:
+  arm_dim:
+  - 7
+  - 7
+  ee_dim:
+  - 20
+  - 20
+allow_default_robot_dims: false

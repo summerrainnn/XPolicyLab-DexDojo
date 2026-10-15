@@ -1,0 +1,46 @@
+# Marvin/Wuji deployment profile. Supply a matching trained checkpoint and its model-specific assets.
+policy_name: ACT
+protocol: ws
+host: 127.0.0.1
+port: null
+bench_name: RoboDojo
+task_name: null
+ckpt_name: null
+env_cfg_type: marvin_wuji
+action_type: joint
+ckpt_setting: null
+seed: 0
+eval_batch: false
+kl_weight: 10.0
+chunk_size: 50
+hidden_dim: 512
+dim_feedforward: 3200
+temporal_agg: false
+device: cuda:0
+ckpt_dir: null
+policy_class: ACT
+num_epochs: 6000
+position_embedding: sine
+lr_backbone: 1.0e-05
+weight_decay: 0.0001
+lr: 1.0e-05
+masks: false
+dilation: false
+backbone: resnet18
+nheads: 8
+enc_layers: 4
+dec_layers: 7
+pre_norm: false
+dropout: 0.1
+camera_names:
+- cam_head
+- cam_right_wrist
+- cam_left_wrist
+robot_action_dim_info:
+  arm_dim:
+  - 7
+  - 7
+  ee_dim:
+  - 20
+  - 20
+allow_default_robot_dims: false

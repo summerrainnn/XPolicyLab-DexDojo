@@ -1,0 +1,23 @@
+# Marvin/Wuji deployment profile. Supply a matching trained checkpoint and its model-specific assets.
+policy_name: Dexbotic_DM0
+protocol: ws
+host: 127.0.0.1
+bench_name: RoboDojo
+task_name: null
+env_cfg_type: marvin_wuji
+action_type: joint
+seed: null
+eval_batch: false
+model_path: null
+norm_stats_path: null
+action_chunk_size: 50
+prompt: null
+port: 6000
+robot_action_dim_info:
+  arm_dim:
+  - 7
+  - 7
+  ee_dim:
+  - 20
+  - 20
+allow_default_robot_dims: false

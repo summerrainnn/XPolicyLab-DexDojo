@@ -20,7 +20,9 @@ class WsModelClient:
         ws_ping_interval_s: float | None = 20.0,
         ws_ping_timeout_s: float | None = 20.0,
         client: Any | None = None,
+        direct_calls: bool = False,
     ):
+        self.direct_calls = direct_calls
         self.action_case_id = action_case_id
         self.trial_id = trial_id
         self.repeat_index = repeat_index
@@ -39,6 +41,23 @@ class WsModelClient:
         self._loop.run_until_complete(self._client.connect(handshake=True))
 
     def call(self, func_name: str | None = None, obs: Any = None, **kwargs: Any) -> Any:
+        if self.direct_calls and func_name in {
+            "update_obs", "update_obs_batch", "get_action", "get_action_batch",
+            "begin_episode", "step", "get_action_per_frame", "get_keyframe_interval",
+        }:
+            from client_server.ws.protocol.messages import MessageType
+            if func_name == "get_action_batch":
+                args = [kwargs.get("env_idx_list", obs)]
+            elif func_name in {"update_obs", "update_obs_batch", "begin_episode", "step"}:
+                args = [obs]
+            else:
+                args = []
+            response = self._loop.run_until_complete(self._client.request(
+                MessageType.CALL, {"method": func_name, "args": args},
+                trial_id=self.trial_id, action_case_id=self.action_case_id, step=self._step))
+            if func_name in {"get_action", "get_action_batch", "step"}:
+                self._step += 1
+            return response.payload.get("result")
         if func_name == "prepare_case":
             if self.action_case_id is None:
                 raise ValueError("prepare_case requires action_case_id")

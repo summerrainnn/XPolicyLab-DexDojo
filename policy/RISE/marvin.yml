@@ -1,0 +1,27 @@
+# Marvin/Wuji deployment profile. Supply a matching trained checkpoint and its model-specific assets.
+policy_name: RISE
+protocol: ws
+eval_batch: false
+port: null
+host: 127.0.0.1
+bench_name: RoboDojo
+task_name: null
+ckpt_name: null
+env_cfg_type: marvin_wuji
+action_type: joint
+action_dim: 54
+gpu_id: null
+seed: null
+upstream_dir: RISE
+config_name: Policy_offline_release
+checkpoint_path: null
+default_prompt: null
+sample_data_dir: data/RoboDojo/test_data/arx_x5
+robot_action_dim_info:
+  arm_dim:
+  - 7
+  - 7
+  ee_dim:
+  - 20
+  - 20
+allow_default_robot_dims: false

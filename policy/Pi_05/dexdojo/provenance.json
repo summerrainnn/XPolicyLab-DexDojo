@@ -1,0 +1,19 @@
+{
+  "robodojo_commit": "d4510d785d112d04705521b455c483922bad0bc0",
+  "xpolicylab_commit": "72b3a52f2b069220088ef824ade5890885858379",
+  "files": {
+    "train.py": {
+      "source": "XPolicyLab/policy/Pi_05/openpi/scripts/train.py",
+      "source_sha256": "629089c7c1cb0ba7101aa44eea4a01d700a2de97df12d48c5548e37b5912f9f6"
+    },
+    "eval_env.py": {
+      "source": "src/eval_client/eval_env.py",
+      "source_sha256": "d49bc0318a7c65a5f0f57778e7032977b9222efb210092c60cbe50c7e31f793c"
+    },
+    "deploy.py": {
+      "source": "XPolicyLab/policy/Pi_05/deploy.py",
+      "source_sha256": "4ce7ac892b92ce5eae7d17b94108e7a66f69bcca121bf0cea7b53f5414133680"
+    }
+  },
+  "robodojo_official_baseline": "25691aa78fb34bbbe798aa3d880d57ef2788f696"
+}

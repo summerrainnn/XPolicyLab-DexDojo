@@ -1,0 +1,32 @@
+# Marvin/Wuji deployment profile. Supply a matching trained checkpoint and its model-specific assets.
+policy_name: Pi_05
+protocol: ws
+host: 127.0.0.1
+bench_name: RoboDojo
+task_name: null
+env_cfg_type: marvin_wuji
+seed: null
+eval_batch: false
+checkpoint_num: 59999
+result_dir: ./results/pi05/
+obs_transform_pipeline: xspark-v1.0
+action_type: joint
+policy_uv_env_path: openpi
+train_config_name: pi05_base_aloha_full_sim_arx-x5_seed_0
+repo_id: arx_x5_sim
+port: 6000
+robot_action_dim_info:
+  arm_dim:
+  - 7
+  - 7
+  ee_dim:
+  - 20
+  - 20
+allow_default_robot_dims: false
+model: pi05
+dataset: null
+base_params: null
+checkpoint: null
+python_paths:
+- ../Pi_05/openpi/src
+- ../Pi_05/openpi/packages/openpi-client/src

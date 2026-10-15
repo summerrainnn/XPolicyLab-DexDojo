@@ -1,0 +1,25 @@
+# Marvin/Wuji deployment profile. Supply a matching trained checkpoint and its model-specific assets.
+policy_name: MolmoACT2
+protocol: ws
+host: 127.0.0.1
+bench_name: RoboDojo
+task_name: null
+ckpt_name: null
+env_cfg_type: marvin_wuji
+action_type: joint
+seed: 0
+eval_batch: false
+checkpoint_num: 40000
+inference_action_mode: continuous
+policy_uv_env_path: molmoact2/lerobot
+device: cuda
+actions_per_chunk: null
+port: 6000
+robot_action_dim_info:
+  arm_dim:
+  - 7
+  - 7
+  ee_dim:
+  - 20
+  - 20
+allow_default_robot_dims: false

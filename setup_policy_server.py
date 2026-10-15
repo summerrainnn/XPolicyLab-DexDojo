@@ -29,7 +29,9 @@ def main(deploy_cfg):
 
     # Instantiate model
     model_class_func = eval_function_decorator(f"XPolicyLab.policy.{policy_name}.model", "Model")
-    model = model_class_func(deploy_cfg)
+    module = importlib.import_module(f"XPolicyLab.policy.{policy_name}.model")
+    factory = getattr(module, "create_model", model_class_func)
+    model = factory(deploy_cfg)
 
     if protocol == "ws":
         try:

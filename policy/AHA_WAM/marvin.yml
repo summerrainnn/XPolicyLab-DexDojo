@@ -1,0 +1,43 @@
+# Marvin/Wuji deployment profile. Supply a matching trained checkpoint and its model-specific assets.
+policy_name: AHA_WAM
+protocol: ws
+eval_batch: false
+port: null
+host: 127.0.0.1
+bench_name: RoboDojo
+task_name: null
+ckpt_name: null
+env_cfg_type: marvin_wuji
+env_cfg_root: null
+action_type: joint
+action_dim: 54
+seed: null
+elava_root: null
+task_config: robodojo_ahawam_finetune_32_kv_xpolicy
+checkpoint_path: null
+dataset_stats_path: null
+diffsynth_model_base_path: null
+sim_cfg_name: sim_robotwin.yaml
+sim_task: robodojo_local_history_updated_kv_prior_only
+device: cuda
+mixed_precision: bf16
+action_horizon: 64
+replan_steps: 16
+chunks_per_video_prefill: 2
+num_inference_steps: 10
+sigma_shift: null
+text_cfg_scale: 1.0
+negative_prompt: ''
+rand_device: cpu
+tiled: false
+timing_enabled: false
+default_instruction: follow the instruction
+allow_dummy_policy: false
+robot_action_dim_info:
+  arm_dim:
+  - 7
+  - 7
+  ee_dim:
+  - 20
+  - 20
+allow_default_robot_dims: false

@@ -1,24 +1,15 @@
-# Copyright (C) 2026 Xiaomi Corporation.
-# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this
-# file except in compliance with the License. You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software distributed under
-# the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
-# ANY KIND, either express or implied. See the License for the specific language
-# governing permissions and limitations under the License.
-
-try:
-    from .deploy import *
-except ImportError:
-    pass
-
-try:
-    from .model import *
-except ImportError:
-    pass
+"""Load inference frameworks only in the policy process, never for deploy imports."""
+def __getattr__(name):
+    if name == "Model":
+        from .model import Model
+        return Model
+    if name in ("eval_one_episode", "eval_one_episode_batch"):
+        from importlib import import_module
+        return getattr(import_module(__name__ + ".deploy"), name)
+    raise AttributeError(name)
 
 
 def get_model(deploy_cfg):
-    return Model(deploy_cfg)
+    from importlib import import_module
+    module = import_module(__name__ + ".model")
+    return getattr(module, "create_model", module.Model)(deploy_cfg)

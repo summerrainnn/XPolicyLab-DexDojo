@@ -11,6 +11,8 @@ import os
 class Model(ModelTemplate):
 
     def __init__(self, model_cfg):
+        dims = get_robot_action_dim_info(model_cfg['env_cfg_type'])
+        os.environ['ACT_ACTION_DIM'] = str(sum(dims['arm_dim']) + sum(dims['ee_dim']))
         self.camera_names = model_cfg.get('camera_names', [])
         model_cfg['camera_names'] = self.camera_names
 

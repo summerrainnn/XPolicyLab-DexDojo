@@ -257,3 +257,11 @@ def ensure_chw_uint8(image):
 
 def decode_compressed_image(image_buffer):
     return decode_image_bit(image_buffer)
+
+def create_model(config):
+    if config.get("env_cfg_type") in ("marvin_wuji", "tianji_marvin_wuji"):
+        from XPolicyLab.policy.Pi_05.dexdojo.policy import WujiModel
+        config = dict(config)
+        config.setdefault("model", "pi05")
+        return WujiModel(config)
+    return Model(config)

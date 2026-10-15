@@ -32,11 +32,21 @@ class Model(ModelTemplate):
 
         self.runner = DPRunner(n_obs_steps=n_obs_steps, n_action_steps=n_action_steps)
         self.model = self.get_model(model_cfg=model_cfg)
+        self.runner = DPRunner(n_obs_steps=self.model.n_obs_steps,
+                               n_action_steps=self.model.n_action_steps)
 
         self.robot_action_dim_info = get_robot_action_dim_info(model_cfg['env_cfg_type'])
         self._latest_env_idx_list = None
 
     def get_model(self, model_cfg):
+        if model_cfg.get("dexdojo_checkpoint"):
+            from omegaconf import OmegaConf
+            payload = torch.load(model_cfg["dexdojo_checkpoint"], map_location="cpu", weights_only=False)
+            cfg = OmegaConf.create(payload["config"])
+            policy = hydra.utils.instantiate(cfg.policy)
+            policy.load_state_dict(payload["ema"])
+            return policy.to(model_cfg.get("device", "cuda:0")).eval()
+
         ckpt_dir = resolve_checkpoint_root(
             model_cfg,
             os.path.join(parent_dir, "checkpoints"),

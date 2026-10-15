@@ -1,0 +1,31 @@
+# Marvin/Wuji deployment profile. Supply a matching trained checkpoint and its model-specific assets.
+policy_name: Hy_Embodied_05_VLA
+protocol: ws
+host: 127.0.0.1
+bench_name: RoboDojo
+task_name: null
+env_cfg_type: marvin_wuji
+action_type: ee
+seed: null
+eval_batch: false
+hy_root: Hy-Embodied-0.5-VLA
+ckpt_path: Hy-VLA-RoboDojo-v3/hyvla_dojo_ckpt_v3
+norm_path: null
+with_absolute: false
+umi_coord_frame: true
+umi_gripper_space: false
+blend_mode: rel_only
+exc_action_size: 10
+exc_action_interval: 1
+img_history_size: 6
+img_history_interval: 20
+policy_uv_env_path: Hy-Embodied-0.5-VLA
+port: 6000
+robot_action_dim_info:
+  arm_dim:
+  - 7
+  - 7
+  ee_dim:
+  - 20
+  - 20
+allow_default_robot_dims: false

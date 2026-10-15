@@ -42,6 +42,23 @@ resolve_src_dataset() {
 
 write_modality_json() {
   case "${env_cfg_type}" in
+    marvin_wuji|tianji_marvin_wuji)
+      python - "${dataset_path}" <<'PYMETA'
+import json, sys
+from pathlib import Path
+root=Path(sys.argv[1]); info=json.loads((root/'meta/info.json').read_text())
+for key in ('observation.state','action'):
+    if info['features'][key]['shape'] != [54]:
+        raise ValueError(f'{key}: expected 54D source data')
+parts={'left_arm':{'start':0,'end':27}, 'right_arm':{'start':27,'end':54}}
+meta={'state':parts,'action':parts,'video':{
+    'front':{'original_key':'observation.images.cam_head'},
+    'left_wrist':{'original_key':'observation.images.cam_left_wrist'},
+    'right_wrist':{'original_key':'observation.images.cam_right_wrist'}},
+    'annotation':{'human.task_description':{'original_key':'task_index'}}}
+(root/'meta/modality.json').write_text(json.dumps(meta,indent=2)+'\n')
+PYMETA
+      ;;
     arx_x5)
       cat > "${dataset_path}/meta/modality.json" <<'EOF'
 {
@@ -74,6 +91,9 @@ EOF
 write_modality_config() {
   mkdir -p "${POLICY_DIR}/configs"
   case "${env_cfg_type}" in
+    marvin_wuji|tianji_marvin_wuji)
+      [[ -f "${modality_config}" ]] || cp "${POLICY_DIR}/configs/marvin_wuji_config.py" "${modality_config}"
+      ;;
     arx_x5)
       cat > "${modality_config}" <<'PY'
 from gr00t.configs.data.embodiment_configs import register_modality_config
